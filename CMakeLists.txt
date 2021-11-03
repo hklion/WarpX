@@ -209,6 +209,9 @@ endif()
 # link dependencies
 target_link_libraries(WarpX PUBLIC WarpX::thirdparty::AMReX)
 
+target_link_libraries(WarpX PUBLIC gsl)
+target_link_libraries(WarpX PUBLIC gslcblas)
+
 if(WarpX_PSATD)
     target_link_libraries(WarpX PUBLIC WarpX::thirdparty::FFT)
     if(WarpX_DIMS STREQUAL RZ)

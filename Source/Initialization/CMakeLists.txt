@@ -9,4 +9,5 @@ target_sources(WarpX
     VelocityProperties.cpp
     GetTemperature.cpp
     GetVelocity.cpp
+    ReconnectionPerturbation.cpp
 )
