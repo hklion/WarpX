@@ -73,12 +73,15 @@ Reconnection_Perturbation::AddBfieldPerturbation (amrex::MultiFab *Bx,
 #endif
     amrex::Print() << " Lx " << Lx << " " << Lz << "\n";
     amrex::Real xcs, B0, nd_ratio, delta, magnitude;
+    int flip = 0;
     ParmParse pp_warpx("warpx");
     pp_warpx.get("xcs", xcs);
     pp_warpx.get("B0", B0);
     pp_warpx.get("nd_ratio", nd_ratio);
     pp_warpx.get("delta", delta);
     pp_warpx.get("magnitude", magnitude);
+    // Whether to flip the sign of the perturbation for one current sheet
+    pp_warpx.get("flip", flip);
 
     for ( MFIter mfi(*Bx, TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -111,7 +114,9 @@ Reconnection_Perturbation::AddBfieldPerturbation (amrex::MultiFab *Bx,
                                   * std::cos(pi_val/Lx * (x-xcs));
             amrex::Real IntegralBz_val = Reconnection_Perturbation::IntegralBz(
                                          x, z, pi_val, xcs, B0, nd_ratio, delta);
-            Bx_array(i,j,k) += magnitude * prefactor * IntegralBz_val;
+            amrex::Real sign = 1;
+            if (flip && x <= 0) sign = -1;
+            Bx_array(i,j,k) += sign * magnitude * prefactor * IntegralBz_val;
 
         });
         // Compute perturbation and add to Bz
@@ -136,7 +141,9 @@ Reconnection_Perturbation::AddBfieldPerturbation (amrex::MultiFab *Bx,
                                         * std::cos(pi_val/Lx * (x-xcs)) ;
             amrex::Real IntegralBz_val = Reconnection_Perturbation::IntegralBz(
                                          x, z, pi_val, xcs, B0, nd_ratio, delta);
-            Bz_array(i,j,k) += magnitude * ( prefactor_term1 * IntegralBz_val
+            amrex::Real sign = 1;
+            if (flip && x <= 0) sign = -1;
+            Bz_array(i,j,k) += sign * magnitude * ( prefactor_term1 * IntegralBz_val
                                                + prefactor_term2 * zfield_parser(x,y,z)
                                                );
         });
