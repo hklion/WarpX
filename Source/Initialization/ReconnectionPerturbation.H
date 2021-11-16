@@ -69,7 +69,7 @@ public:
         complex_dilog_result.imag(z_dilog_im.val);
         return complex_dilog_result;
     }
-    
+
     /**
      * Perform derivative along x on a cell-centered grid, from a nodal field `F` */
     AMREX_FORCE_INLINE
@@ -80,6 +80,7 @@ public:
     {
         using namespace amrex;
         std::complex<double> i(0.0, 1.);
+        std::complex<double> dilogsum1, dilogsum2;
 
         amrex::Real prefactor = (2._rt * B0) / ( (pi_val/2._rt) + nd_ratio - 1._rt);
         amrex::Real term1 = pi_val/4._rt * (x - 2._rt * xcs);
@@ -88,14 +89,27 @@ public:
                             - delta * std::log( std::cosh ( (x+xcs) / delta) )
                             + x
                             );
-        std::complex<double> term3 = delta * i / 2.0_rt
-                                     * ( getComplexDilog( -i * std::exp( -(x-xcs)/delta) )
-                                       - getComplexDilog(  i * std::exp( -(x-xcs)/delta) )
-                                       );
-        std::complex<double> term4 = - delta * i / 2.0_rt
-                                     * ( getComplexDilog( -i * std::exp( -(x+xcs)/delta) )
-                                       - getComplexDilog(  i * std::exp( -(x+xcs)/delta) )
-                                       );
+        // If either of these are too large, we need to use the series expansion at infinity
+        // of the difference of the dilogs
+        amrex::Real exparg1 = -(x-xcs)/delta;
+        amrex::Real exparg2 = -(x+xcs)/delta;
+        if (exparg1 > 200.) {
+            dilogsum1 = -i * pi_val * exparg1;
+        }
+        else {
+            dilogsum1 = getComplexDilog( -i * std::exp( -(x-xcs)/delta) )
+                      - getComplexDilog(  i * std::exp( -(x-xcs)/delta) );
+        }
+
+        if (exparg2 > 200.) {
+            dilogsum2 = -i * pi_val * exparg2;
+        }
+        else {
+            dilogsum2 = getComplexDilog( -i * std::exp( -(x+xcs)/delta) )
+                      - getComplexDilog(  i * std::exp( -(x+xcs)/delta) );
+        }
+        std::complex<double> term3 = delta * i / 2.0_rt * dilogsum1;
+        std::complex<double> term4 = - delta * i / 2.0_rt * dilogsum2;
         std::complex<double> IntegralBz_val = prefactor * ( term1 + term2 + term3 + term4);
         return IntegralBz_val.real();
     }
