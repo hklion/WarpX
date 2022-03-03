@@ -71,16 +71,16 @@ Reconnection_Perturbation::AddBfieldPerturbation (amrex::MultiFab *Bx,
 #endif
     amrex::Print() << " Lx " << Lx << " " << Lz << "\n";
     amrex::Real xcs, B0, nd_ratio, delta, magnitude;
-    amrex::Real index_x = 2.0;
-    amrex::Real index_z = 1.0;
+    amrex::Real power_x = 2.0;
+    amrex::Real power_z = 1.0;
     ParmParse pp_warpx("warpx");
     pp_warpx.get("xcs", xcs);
     pp_warpx.get("B0", B0);
     pp_warpx.get("nd_ratio", nd_ratio);
     pp_warpx.get("delta", delta);
     pp_warpx.get("magnitude", magnitude);
-    pp_warpx.query("index_x", index_x);
-    pp_warpx.query("index_z", index_z);
+    pp_warpx.query("power_x", power_x);
+    pp_warpx.query("power_z", power_z);
 
     for ( MFIter mfi(*Bx, TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
@@ -109,9 +109,9 @@ Reconnection_Perturbation::AddBfieldPerturbation (amrex::MultiFab *Bx,
             amrex::ignore_unused(y);
             // Sinusoidal prefactor for the x-component of the perturbation
             // d(perturbation)/dz
-            amrex::Real prefactor = -(pi_val / Lz) * index_z * std::sin(pi_val/Lz * z)
-                                  * pow(std::cos(pi_val/Lz * z), index_z-1)
-                                  * pow(std::cos(pi_val/Lx * (x-xcs)), index_x);
+            amrex::Real prefactor = -(pi_val / Lz) * power_z * std::sin(pi_val/Lz * z)
+                                  * pow(std::cos(pi_val/Lz * z), power_z-1)
+                                  * pow(std::cos(pi_val/Lx * (x-xcs)), power_x);
 //                                  * std::cos(pi_val/Lx * (x-xcs))
 //                                  * std::cos(pi_val/Lx * (x-xcs));
             amrex::Real IntegralBz_val = Reconnection_Perturbation::IntegralBz(
@@ -135,12 +135,12 @@ Reconnection_Perturbation::AddBfieldPerturbation (amrex::MultiFab *Bx,
 #endif
             amrex::ignore_unused(y);
             // d(perturbation)/dx
-            amrex::Real prefactor_term1 = (pi_val / Lx) * index_x * pow(std::cos(pi_val/Lz * z), index_z)
+            amrex::Real prefactor_term1 = (pi_val / Lx) * power_x * pow(std::cos(pi_val/Lz * z), power_z)
                                         * std::sin(pi_val/Lx * (x-xcs))
-                                        * pow(std::cos(pi_val/Lx * (x-xcs)),index_x-1);
+                                        * pow(std::cos(pi_val/Lx * (x-xcs)),power_x-1);
             // Original perturbation sinusoid
-            amrex::Real prefactor_term2 = -pow(std::cos(pi_val/Lz * z), index_z)
-                                        * pow(std::cos(pi_val/Lx * (x-xcs)), index_x);
+            amrex::Real prefactor_term2 = -pow(std::cos(pi_val/Lz * z), power_z)
+                                        * pow(std::cos(pi_val/Lx * (x-xcs)), power_x);
 //                                        * std::cos(pi_val/Lx * (x-xcs))
 //                                        * std::cos(pi_val/Lx * (x-xcs)) ;
             amrex::Real IntegralBz_val = Reconnection_Perturbation::IntegralBz(
