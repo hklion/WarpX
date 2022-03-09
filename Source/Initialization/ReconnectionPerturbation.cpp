@@ -112,8 +112,6 @@ Reconnection_Perturbation::AddBfieldPerturbation (amrex::MultiFab *Bx,
             amrex::Real prefactor = -(pi_val / Lz) * power_z * std::sin(pi_val/Lz * z)
                                   * pow(std::cos(pi_val/Lz * z), power_z-1)
                                   * pow(std::cos(pi_val/Lx * (x-xcs)), power_x);
-//                                  * std::cos(pi_val/Lx * (x-xcs))
-//                                  * std::cos(pi_val/Lx * (x-xcs));
             amrex::Real IntegralBz_val = Reconnection_Perturbation::IntegralBz(
                                          x, z, pi_val, xcs, B0, nd_ratio, delta);
             Bx_array(i,j,k) += magnitude * prefactor * IntegralBz_val;
@@ -141,8 +139,6 @@ Reconnection_Perturbation::AddBfieldPerturbation (amrex::MultiFab *Bx,
             // Original perturbation sinusoid
             amrex::Real prefactor_term2 = -pow(std::cos(pi_val/Lz * z), power_z)
                                         * pow(std::cos(pi_val/Lx * (x-xcs)), power_x);
-//                                        * std::cos(pi_val/Lx * (x-xcs))
-//                                        * std::cos(pi_val/Lx * (x-xcs)) ;
             amrex::Real IntegralBz_val = Reconnection_Perturbation::IntegralBz(
                                          x, z, pi_val, xcs, B0, nd_ratio, delta);
             Bz_array(i,j,k) += magnitude * ( prefactor_term1 * IntegralBz_val
