@@ -26,8 +26,8 @@ ParticleReductionFunctor::ParticleReductionFunctor (const amrex::MultiFab* mf_sr
 
     // Allocate and compile a parser based on the input string fn_str
     m_map_fn_parser = std::make_unique<amrex::Parser>(makeParser(
-                fn_str, {"x", "y", "z", "ux", "uy", "uz"}));
-    m_map_fn = m_map_fn_parser->compile<6>();
+                fn_str, {"x", "y", "z", "ux", "uy", "uz", "us"}));
+    m_map_fn = m_map_fn_parser->compile<7>();
 }
 
 void
@@ -45,6 +45,8 @@ ParticleReductionFunctor::operator() (amrex::MultiFab& mf_dst, const int dcomp, 
     red_mf.setVal(0._rt);
     ppc_mf.setVal(0._rt);
     auto& pc = warpx.GetPartContainer().GetParticleContainer(m_ispec);
+    auto pcomps = pc.getParticleComps();
+    int iupstream = pcomps["upstream"];
     // Copy over compiled parser function so that it can be captured by value in the lambda
     auto map_fn = m_map_fn;
     ParticleToMesh(pc, red_mf, m_lev,
@@ -81,7 +83,8 @@ ParticleReductionFunctor::operator() (amrex::MultiFab& mf_dst, const int dcomp, 
                 amrex::ParticleReal ux = p.rdata(PIdx::ux) / PhysConst::c;
                 amrex::ParticleReal uy = p.rdata(PIdx::uy) / PhysConst::c;
                 amrex::ParticleReal uz = p.rdata(PIdx::uz) / PhysConst::c;
-                amrex::Real value = map_fn(xw, yw, zw, ux, uy, uz);
+                amrex::ParticleReal upstream = p.rdata(iupstream);
+                amrex::Real value = map_fn(xw, yw, zw, ux, uy, uz, upstream);
                 amrex::Gpu::Atomic::AddNoRet(&out_array(ii, jj, kk, 0), p.rdata(PIdx::w) * value);
             });
     // Add the weight for each particle -- total number of particles of this species
