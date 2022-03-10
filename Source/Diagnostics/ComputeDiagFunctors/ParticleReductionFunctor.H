@@ -44,7 +44,7 @@ private:
     /** Parser function to be averaged by the functor. Arguments: x, y, z, ux, uy, uz */
     std::unique_ptr<amrex::Parser> m_map_fn_parser;
     /** Compiled #m_map_fn_parser */
-    amrex::ParserExecutor<6> m_map_fn;
+    amrex::ParserExecutor<7> m_map_fn;
 };
 
 #endif // WARPX_PARTICLEREDUCTIONFUNCTOR_H_

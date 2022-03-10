@@ -67,10 +67,10 @@ ParticleHistogram::ParticleHistogram (std::string rd_name)
 
     // read histogram function
     std::string function_string = "";
-    Store_parserString(pp_rd_name,"histogram_function(t,x,y,z,ux,uy,uz)",
+    Store_parserString(pp_rd_name,"histogram_function(t,x,y,z,ux,uy,uz,us)",
                        function_string);
     m_parser = std::make_unique<amrex::Parser>(
-        makeParser(function_string,{"t","x","y","z","ux","uy","uz"}));
+        makeParser(function_string,{"t","x","y","z","ux","uy","uz","us"}));
 
     // read normalization type
     std::string norm_string = "default";
@@ -107,12 +107,12 @@ ParticleHistogram::ParticleHistogram (std::string rd_name)
 
     // Read optional filter
     std::string buf;
-    m_do_parser_filter = pp_rd_name.query("filter_function(t,x,y,z,ux,uy,uz)", buf);
+    m_do_parser_filter = pp_rd_name.query("filter_function(t,x,y,z,ux,uy,uz,us)", buf);
     if (m_do_parser_filter) {
         std::string filter_string = "";
-        Store_parserString(pp_rd_name,"filter_function(t,x,y,z,ux,uy,uz)", filter_string);
+        Store_parserString(pp_rd_name,"filter_function(t,x,y,z,ux,uy,uz,us)", filter_string);
         m_parser_filter = std::make_unique<amrex::Parser>(
-                                     makeParser(filter_string,{"t","x","y","z","ux","uy","uz"}));
+                                     makeParser(filter_string,{"t","x","y","z","ux","uy","uz","us"}));
     }
 
     // resize data array
@@ -178,6 +178,9 @@ void ParticleHistogram::ComputeDiags (int step)
         (m_norm == NormalizationType::unity_particle_weight) ? true : false;
 
     bool const do_parser_filter = m_do_parser_filter;
+    // figure out which particle attribute is upstream
+    auto pcomps = myspc.getParticleComps();
+    const int iupstream = pcomps["upstream"];
 
     // zero-out old data on the host
     std::fill(m_data.begin(), m_data.end(), amrex::Real(0.0));
@@ -199,6 +202,7 @@ void ParticleHistogram::ComputeDiags (int step)
                 Real* const AMREX_RESTRICT d_ux = attribs[PIdx::ux].dataPtr();
                 Real* const AMREX_RESTRICT d_uy = attribs[PIdx::uy].dataPtr();
                 Real* const AMREX_RESTRICT d_uz = attribs[PIdx::uz].dataPtr();
+                Real* const AMREX_RESTRICT d_ups = pti.GetAttribs(iupstream).dataPtr();
 
                 long const np = pti.numParticles();
 
@@ -212,13 +216,14 @@ void ParticleHistogram::ComputeDiags (int step)
                     auto const ux = d_ux[i] / PhysConst::c;
                     auto const uy = d_uy[i] / PhysConst::c;
                     auto const uz = d_uz[i] / PhysConst::c;
+                    auto const upstream = d_ups[i];
 
                     // don't count a particle if it is filtered out
                     if (do_parser_filter)
-                        if (!fun_filterparser(t, x, y, z, ux, uy, uz))
+                        if (!fun_filterparser(t, x, y, z, ux, uy, uz,upstream))
                             return;
                     // continue function if particle is not filtered out
-                    auto const f = fun_partparser(t, x, y, z, ux, uy, uz);
+                    auto const f = fun_partparser(t, x, y, z, ux, uy, uz,upstream);
 
                     // determine particle bin
                     int const bin = int(Math::floor((f-bin_min)/bin_size));

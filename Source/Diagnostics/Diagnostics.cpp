@@ -115,7 +115,7 @@ Diagnostics::BaseReadParameters ()
     std::string parser_str;
     amrex::ParmParse pp_diag_pfield(m_diag_name + ".particle_fields");
     for (const auto& var : m_pfield_varnames) {
-        Store_parserString(pp_diag_pfield, (var + "(x,y,z,ux,uy,uz)").c_str(), parser_str);
+        Store_parserString(pp_diag_pfield, (var + "(x,y,z,ux,uy,uz,us)").c_str(), parser_str);
         if (parser_str != "") {
             m_pfield_strings.insert({var, parser_str});
         }

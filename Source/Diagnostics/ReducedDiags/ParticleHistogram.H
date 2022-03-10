@@ -48,7 +48,7 @@ public:
 
     /// Parser to read expression for particle quantity from the input file.
     /// 7 elements are t, x, y, z, ux, uy, uz
-    static constexpr int m_nvars = 7;
+    static constexpr int m_nvars = 8;
     std::unique_ptr<amrex::Parser> m_parser;
 
     /// Optional parser to filter particles before doing the histogram
