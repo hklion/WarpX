@@ -33,9 +33,11 @@ To contact the developers, feel free to open an issue on this repo, or visit our
 
 Additionally, HarrisSheetinX requires GSL. When running on perlmutter, add the following lines to the `warpx.profile`:
 
-```module load nersc-easybuild/.21.12
-```module load GSL
-```module unload GCC
+```
+module load nersc-easybuild/.21.12
+module load GSL
+module unload GCC
+```
 
 ## Contributing
 
