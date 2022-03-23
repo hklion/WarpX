@@ -77,14 +77,14 @@ ParticleDiag::ParticleDiag(std::string diag_name, std::string name, WarpXParticl
     m_do_uniform_filter = queryWithParser(pp_diag_name_species_name, "uniform_stride",
                                                                      m_uniform_stride);
     std::string buf;
-    m_do_parser_filter = pp_diag_name_species_name.query("plot_filter_function(t,x,y,z,ux,uy,uz)",
+    m_do_parser_filter = pp_diag_name_species_name.query("plot_filter_function(t,x,y,z,ux,uy,uz,us,tr)",
                                                          buf);
 
     if (m_do_parser_filter) {
         std::string function_string = "";
-        Store_parserString(pp_diag_name_species_name,"plot_filter_function(t,x,y,z,ux,uy,uz)",
+        Store_parserString(pp_diag_name_species_name,"plot_filter_function(t,x,y,z,ux,uy,uz,us,tr)",
                            function_string);
         m_particle_filter_parser = std::make_unique<amrex::Parser>(
-            makeParser(function_string,{"t","x","y","z","ux","uy","uz"}));
+            makeParser(function_string,{"t","x","y","z","ux","uy","uz","us","tr"}));
     }
 }

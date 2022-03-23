@@ -17,6 +17,7 @@
 #include <AMReX_Random.H>
 
 using SuperParticleType = typename WarpXParticleContainer::SuperParticleType;
+using TileType = typename WarpXParticleContainer::ParticleTileType::ConstParticleTileDataType;
 
 /**
  *  \brief Used to keep track of what inputs units a filter function should expect.
@@ -93,13 +94,15 @@ struct ParserFilter
 {
     /** constructor
      * \param a_is_active whether the test is active
-     * \param a_filter_parser parser taking t, x, y, z, ux, uy, and uz, and returning a value > 0.5 for selected particle
+     * \param a_filter_parser parser taking t, x, y, z, ux, uy, uz, upstream, track and returning a value > 0.5 for selected particle
      * \param a_mass mass of the particle species
      */
-    ParserFilter(bool a_is_active, amrex::ParserExecutor<7> const& a_filter_parser,
-                 amrex::Real a_mass)
+    ParserFilter(bool a_is_active, amrex::ParserExecutor<9> const& a_filter_parser,
+                 amrex::Real a_mass, std::map<std::string, int>& a_rt_param_map)
         : m_is_active(a_is_active), m_function_partparser(a_filter_parser), m_mass(a_mass)
     {
+        m_ius = a_rt_param_map["upstream"] - PIdx::nattribs;
+        m_itr = a_rt_param_map["track"] - PIdx::nattribs;
         m_t = WarpX::GetInstance().gett_new(0);
         m_units = InputUnits::WarpX;
     }
@@ -125,15 +128,45 @@ struct ParserFilter
             uz /= m_mass;
         }
         // ux, uy, uz are now in beta*gamma
-        if ( m_function_partparser(m_t,x,y,z,ux,uy,uz) > 0.5 ) return 1;
+        if ( m_function_partparser(m_t,x,y,z,ux,uy,uz,0.0,0.0) > 0.5 ) return 1;
+        else return 0;
+    }
+    /**
+     * \brief return 1 if the particle is selected by the parser
+     * \param p one particle
+     * \return whether or not the particle is selected
+     */
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    bool operator () (const TileType& ptd, const int ip, const amrex::RandomEngine&) const noexcept
+    {
+        if ( !m_is_active ) return 1;
+        auto p = ptd.getSuperParticle(ip);
+        amrex::ParticleReal x, y, z;
+        get_particle_position(p, x, y, z);
+        amrex::Real ux = p.rdata(PIdx::ux)/PhysConst::c;
+        amrex::Real uy = p.rdata(PIdx::uy)/PhysConst::c;
+        amrex::Real uz = p.rdata(PIdx::uz)/PhysConst::c;
+        amrex::Real us = ptd.m_runtime_rdata[m_ius][ip];
+        amrex::Real tr = ptd.m_runtime_rdata[m_itr][ip];
+        if (m_units == InputUnits::SI)
+        {
+            ux /= m_mass;
+            uy /= m_mass;
+            uz /= m_mass;
+        }
+        // ux, uy, uz are now in beta*gamma
+        if ( m_function_partparser(m_t,x,y,z,ux,uy,uz,us,tr) > 0.5 ) return 1;
         else return 0;
     }
 private:
     /** Whether this diagnostics is activated. Select all particles if false */
     const bool m_is_active;
+    /** Record indices of user-defined vars */
+    int m_ius;
+    int m_itr;
 public:
-    /** Parser function with 7 input variables, t,x,y,z,ux,uy,uz */
-    amrex::ParserExecutor<7> const m_function_partparser;
+    /** Parser function with 9 input variables, t,x,y,z,ux,uy,uz,upstream,track */
+    amrex::ParserExecutor<9> const m_function_partparser;
     /** Store physical time. */
     amrex::Real m_t;
     /** Mass of particle species */

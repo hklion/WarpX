@@ -598,7 +598,7 @@ WarpXOpenPMDPlot::WriteOpenPMDParticles (const amrex::Vector<ParticleDiag>& part
       UniformFilter const uniform_filter(particle_diags[i].m_do_uniform_filter,
                                          particle_diags[i].m_uniform_stride);
       ParserFilter parser_filter(particle_diags[i].m_do_parser_filter,
-                                 compileParser<ParticleDiag::m_nvars>
+                                 compileParser<9>
                                      (particle_diags[i].m_particle_filter_parser.get()),
                                  pc->getMass());
       parser_filter.m_units = InputUnits::SI;
@@ -606,13 +606,14 @@ WarpXOpenPMDPlot::WriteOpenPMDParticles (const amrex::Vector<ParticleDiag>& part
                                            particle_diags[i].m_diag_domain);
 
       if (! isBTD) {
+          auto rtmap = pc->getParticleComps();
           using SrcData = WarpXParticleContainer::ParticleTileType::ConstParticleTileDataType;
           tmp.copyParticles(*pc,
                             [=] AMREX_GPU_HOST_DEVICE (const SrcData& src, int ip, const amrex::RandomEngine& engine)
           {
               const SuperParticleType& p = src.getSuperParticle(ip);
               return random_filter(p, engine) * uniform_filter(p, engine)
-                     * parser_filter(p, engine) * geometry_filter(p, engine);
+                     * parser_filter(src, p, rtmap, engine) * geometry_filter(p, engine);
           }, true);
       } else if (isBTD) {
           PinnedMemoryParticleContainer* pinned_pc = particle_diags[i].getPinnedParticleContainer();

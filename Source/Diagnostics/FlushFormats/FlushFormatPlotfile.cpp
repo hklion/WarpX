@@ -343,15 +343,16 @@ FlushFormatPlotfile::WriteParticles(const std::string& dir,
         int_flags.resize(pc->NumIntComps(), 1);
 
         pc->ConvertUnits(ConvertDirection::WarpX_to_SI);
+        auto rtmap = pc->getParticleComps();
 
         RandomFilter const random_filter(particle_diags[i].m_do_random_filter,
                                          particle_diags[i].m_random_fraction);
         UniformFilter const uniform_filter(particle_diags[i].m_do_uniform_filter,
                                            particle_diags[i].m_uniform_stride);
         ParserFilter parser_filter(particle_diags[i].m_do_parser_filter,
-                                   compileParser<ParticleDiag::m_nvars>
+                                   compileParser<9>
                                        (particle_diags[i].m_particle_filter_parser.get()),
-                                   pc->getMass());
+                                   pc->getMass(), rtmap);
         parser_filter.m_units = InputUnits::SI;
         GeometryFilter const geometry_filter(particle_diags[i].m_do_geom_filter,
                                              particle_diags[i].m_diag_domain);
@@ -363,7 +364,7 @@ FlushFormatPlotfile::WriteParticles(const std::string& dir,
             {
                 const SuperParticleType& p = src.getSuperParticle(ip);
                 return random_filter(p, engine) * uniform_filter(p, engine)
-                    * parser_filter(p, engine) * geometry_filter(p, engine);
+                    * parser_filter(src, ip, engine) * geometry_filter(p, engine);
             }, true);
         } else {
             PinnedMemoryParticleContainer* pinned_pc = particle_diags[i].getPinnedParticleContainer();
