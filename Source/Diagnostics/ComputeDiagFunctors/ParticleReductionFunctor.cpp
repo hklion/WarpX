@@ -46,7 +46,7 @@ ParticleReductionFunctor::operator() (amrex::MultiFab& mf_dst, const int dcomp, 
     ppc_mf.setVal(0._rt);
     auto& pc = warpx.GetPartContainer().GetParticleContainer(m_ispec);
     auto pcomps = pc.getParticleComps();
-    const int iupstream = pcomps["upstream"] - PIdx::nattrib;
+    const int iupstream = pcomps["upstream"] - PIdx::nattribs;
     // Copy over compiled parser function so that it can be captured by value in the lambda
     auto map_fn = m_map_fn;
     ParticleToMesh(pc, red_mf, m_lev,
