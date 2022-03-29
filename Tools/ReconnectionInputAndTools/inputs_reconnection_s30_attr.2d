@@ -64,8 +64,8 @@ diags_part.electrons.random_fraction = 0.1
 diags_track.intervals = 1
 diags_track.diag_type = Full
 diags_track.fields_to_plot = Ex #output minimum number of fields
-diags_track.ions.plot_filter_function(t,x,y,z,ux,uy,uz,us,tr) = tr
-diags_track.electrons.plot_filter_function(t,x,y,z,ux,uy,uz,us,tr) = tr
+diags_track.ions.plot_filter_function(t,x,y,z,ux,uy,uz,us,track) = track
+diags_track.electrons.plot_filter_function(t,x,y,z,ux,uy,uz,us,track) = track
 
 diags.particle_fields_to_plot = ux uy uz uxsq uysq uzsq energy upstream
 diags.particle_fields.ux(x,y,z,ux,uy,uz,us) = ux / sqrt(1 + ux * ux + uy * uy + uz * uz)
