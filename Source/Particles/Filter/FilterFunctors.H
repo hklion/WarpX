@@ -146,8 +146,8 @@ struct ParserFilter
         amrex::Real ux = p.rdata(PIdx::ux)/PhysConst::c;
         amrex::Real uy = p.rdata(PIdx::uy)/PhysConst::c;
         amrex::Real uz = p.rdata(PIdx::uz)/PhysConst::c;
-        amrex::Real us = ptd.m_runtime_rdata[m_ius][ip];
-        amrex::Real tr = ptd.m_runtime_rdata[m_itr][ip];
+        amrex::Real upstream = ptd.m_runtime_rdata[m_ius][ip];
+        amrex::Real track = ptd.m_runtime_rdata[m_itr][ip];
         if (m_units == InputUnits::SI)
         {
             ux /= m_mass;
@@ -155,7 +155,7 @@ struct ParserFilter
             uz /= m_mass;
         }
         // ux, uy, uz are now in beta*gamma
-        if ( m_function_partparser(m_t,x,y,z,ux,uy,uz,us,tr) > 0.5 ) return 1;
+        if ( m_function_partparser(m_t,x,y,z,ux,uy,uz,upstream,track) > 0.5 ) return 1;
         else return 0;
     }
 private:

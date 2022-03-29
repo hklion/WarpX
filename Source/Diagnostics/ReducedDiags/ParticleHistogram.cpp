@@ -67,10 +67,10 @@ ParticleHistogram::ParticleHistogram (std::string rd_name)
 
     // read histogram function
     std::string function_string = "";
-    Store_parserString(pp_rd_name,"histogram_function(t,x,y,z,ux,uy,uz,us)",
+    Store_parserString(pp_rd_name,"histogram_function(t,x,y,z,ux,uy,uz,upstream)",
                        function_string);
     m_parser = std::make_unique<amrex::Parser>(
-        makeParser(function_string,{"t","x","y","z","ux","uy","uz","us"}));
+        makeParser(function_string,{"t","x","y","z","ux","uy","uz","upstream"}));
 
     // read normalization type
     std::string norm_string = "default";
@@ -107,12 +107,12 @@ ParticleHistogram::ParticleHistogram (std::string rd_name)
 
     // Read optional filter
     std::string buf;
-    m_do_parser_filter = pp_rd_name.query("filter_function(t,x,y,z,ux,uy,uz,us)", buf);
+    m_do_parser_filter = pp_rd_name.query("filter_function(t,x,y,z,ux,uy,uz,upstream)", buf);
     if (m_do_parser_filter) {
         std::string filter_string = "";
-        Store_parserString(pp_rd_name,"filter_function(t,x,y,z,ux,uy,uz,us)", filter_string);
+        Store_parserString(pp_rd_name,"filter_function(t,x,y,z,ux,uy,uz,upstream)", filter_string);
         m_parser_filter = std::make_unique<amrex::Parser>(
-                                     makeParser(filter_string,{"t","x","y","z","ux","uy","uz","us"}));
+                                     makeParser(filter_string,{"t","x","y","z","ux","uy","uz","upstream"}));
     }
 
     // resize data array

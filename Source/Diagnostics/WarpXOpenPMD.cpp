@@ -592,7 +592,7 @@ WarpXOpenPMDPlot::WriteOpenPMDParticles (const amrex::Vector<ParticleDiag>& part
     int_flags.resize(pc->NumIntComps(), 1);
 
       pc->ConvertUnits(ConvertDirection::WarpX_to_SI);
-        auto rtmap = pc->getParticleComps();
+      auto rtmap = pc->getParticleComps();
 
       RandomFilter const random_filter(particle_diags[i].m_do_random_filter,
                                        particle_diags[i].m_random_fraction);
