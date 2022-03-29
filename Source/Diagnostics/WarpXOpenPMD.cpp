@@ -607,7 +607,6 @@ WarpXOpenPMDPlot::WriteOpenPMDParticles (const amrex::Vector<ParticleDiag>& part
                                            particle_diags[i].m_diag_domain);
 
       if (! isBTD) {
-          auto rtmap = pc->getParticleComps();
           using SrcData = WarpXParticleContainer::ParticleTileType::ConstParticleTileDataType;
           tmp.copyParticles(*pc,
                             [=] AMREX_GPU_HOST_DEVICE (const SrcData& src, int ip, const amrex::RandomEngine& engine)

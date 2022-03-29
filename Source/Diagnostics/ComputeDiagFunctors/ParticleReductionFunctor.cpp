@@ -26,7 +26,7 @@ ParticleReductionFunctor::ParticleReductionFunctor (const amrex::MultiFab* mf_sr
 
     // Allocate and compile a parser based on the input string fn_str
     m_map_fn_parser = std::make_unique<amrex::Parser>(makeParser(
-                fn_str, {"x", "y", "z", "ux", "uy", "uz", "us"}));
+                fn_str, {"x", "y", "z", "ux", "uy", "uz", "upstream"}));
     m_map_fn = m_map_fn_parser->compile<7>();
 }
 
