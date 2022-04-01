@@ -32,6 +32,7 @@ jobs:
         brew install ninja
         brew install open-mpi
         brew install pkg-config
+        brew install gsl
         set -e
         brew tap openpmd/openpmd
         brew install openpmd-api
