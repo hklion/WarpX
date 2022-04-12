@@ -68,7 +68,7 @@ public:
         Complex complex_dilog_result(z_dilog_re.val,z_dilog_im.val);
         //complex_dilog_result.real(z_dilog_re.val);
         //complex_dilog_result.imag(z_dilog_im.val);
-        return complex_dilog_result.real();
+        return complex_dilog_result;
     }
 
     /**
