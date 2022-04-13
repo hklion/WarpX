@@ -60,17 +60,24 @@ ParticleHistogram2D::ParticleHistogram2D (std::string rd_name)
     pp_rd_name.get("species",selected_species_name);
 
     // read bin parameters
-    getWithParser(pp_rd_name, "bin_number",m_bin_num);
-    getWithParser(pp_rd_name, "bin_max",   m_bin_max);
-    getWithParser(pp_rd_name, "bin_min",   m_bin_min);
-    m_bin_size = (m_bin_max - m_bin_min) / m_bin_num;
+    getArrWithParser(pp_rd_name, "bin_number",m_bin_num);
+    getArrWithParser(pp_rd_name, "bin_max",   m_bin_max);
+    getArrWithParser(pp_rd_name, "bin_min",   m_bin_min);
+
+    if (m_bin_num.size() != m_naxes) amrex::Abort("Incorrect number of input entries");
+
+    m_bin_size.resize(m_naxes);
+    for (int i = 0; i < m_naxes; i++)
+        m_bin_size[i] = (m_bin_max[i] - m_bin_min[i]) / m_bin_num[i];
 
     // read histogram function
     std::string function_string = "";
-    Store_parserString(pp_rd_name,"histogram_function(t,x,y,z,ux,uy,uz)",
-                       function_string);
-    m_parser = std::make_unique<amrex::Parser>(
-        makeParser(function_string,{"t","x","y","z","ux","uy","uz"}));
+    for (int i = 0; i < m_naxes; i++) {
+        Store_parserString(pp_rd_name,"histogram_function(t,x,y,z,ux,uy,uz)",
+                           function_string);
+        m_parser[i] = std::make_unique<amrex::Parser>(
+            makeParser(function_string,{"t","x","y","z","ux","uy","uz"}));
+    }
 
     // read normalization type
     std::string norm_string = "default";

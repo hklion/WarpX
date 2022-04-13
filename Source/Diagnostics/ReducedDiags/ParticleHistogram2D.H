@@ -31,6 +31,9 @@ public:
      */
     ParticleHistogram2D(std::string rd_name);
 
+    /// number of axes
+    static constexpr int m_naxes = 2;
+
     /// normalization type
     int m_norm;
 
@@ -45,8 +48,7 @@ public:
     std::vector<amrex::Real> m_bin_min;
 
     /// bin size
-    amrex::Real m_bin_x_size;
-    amrex::Real m_bin_y_size;
+    std::vector<amrex::Real> m_bin_size;
 
     /// Parsers to read expressions for particle quantity from the input file.
     /// 7 elements are t, x, y, z, ux, uy, uz
