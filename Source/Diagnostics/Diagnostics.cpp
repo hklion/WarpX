@@ -127,7 +127,7 @@ Diagnostics::BaseReadParameters ()
         }
         // Look for and record filter functions. If one is not found, the empty string will be
         // stored as the filter string, and will be ignored.
-        do_parser_filter = pp_diag_pfield.query((var + ".filter(x,y,z,ux,uy,uz)").c_str(), filter_parser_str);
+        do_parser_filter = pp_diag_pfield.query((var + ".filter(x,y,z,ux,uy,uz,upstream)").c_str(), filter_parser_str);
         m_pfield_dofilter.insert({var, do_parser_filter});
         m_pfield_filter_strings.insert({var, filter_parser_str});
     }
