@@ -196,7 +196,6 @@ electrons.density_function(x,y,z) = "nbe* (1+(nde/nbe - 1) * (1/cosh((x+xcs)/del
 electrons.momentum_distribution_type = maxwell_juttner
 electrons.theta_distribution_type = "parser"
 electrons.theta_function(x,y,z) = "sigma / 4 * ((4+eta)/(eta) - (B_prefactor / B0 * (atan(tanh((x-xcs)/(2 * delta))) - atan(tanh((x+xcs)/(2 * delta))) + pi/4 + 0.5 * (nde/nbe - 1) * (tanh((x-xcs)/delta) - tanh((x+xcs)/delta) + 1))) ** 2) / ((1+(nde/nbe - 1) * (1/cosh((x+xcs)/delta) + 1/cosh((x-xcs)/delta))) * (1 - (lambda_e * sigma ** 0.5 / (2 * delta * (pi/2 + nde/nbe - 1)) * (nde/nbe) ** 0.5 * (1/cosh((x+xcs)/delta) - 1/cosh((x-xcs)/delta)))**2) ** 0.5)"
-#B(xyz) = "B_prefactor / B0 * (atan(tanh((x-xcs)/(2 * delta))) - atan(tanh((x+xcs)/(2 * delta))) + pi/4 + 0.5 * (nde/nbe - 1) * (tanh((x-xcs)/delta) - tanh((x+xcs)/delta) + 1))"
 electrons.beta_distribution_type = "parser"
 electrons.beta_function(x,y,z) = "lambda_e * sigma ** 0.5 / (2 * delta * (pi/2 + nde/nbe - 1)) * (nde/nbe) ** 0.5 * (1/cosh((x+xcs)/delta) - 1/cosh((x-xcs)/delta))"
 electrons.bulk_vel_dir = -y
