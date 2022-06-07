@@ -254,8 +254,11 @@ endif()
 target_link_libraries(ablastr PUBLIC WarpX::thirdparty::AMReX)
 target_link_libraries(WarpX PUBLIC ablastr)
 
-target_link_libraries(WarpX PUBLIC gsl)
-target_link_libraries(WarpX PUBLIC gslcblas)
+target_include_directories(WarpX PUBLIC /sw/crusher/spack-envs/base/opt/cray-sles15-zen3/cce-14.0.0/gsl-2.7-h4n6ahxzbtuyyx3qvg3xf26bs7jsd2u5/include)
+target_include_directories(WarpX PUBLIC /sw/crusher/spack-envs/base/opt/cray-sles15-zen3/cce-14.0.0/gsl-2.7-h4n6ahxzbtuyyx3qvg3xf26bs7jsd2u5/lib)
+find_library(GSL_LIBRARY gsl HINTS /sw/crusher/spack-envs/base/opt/cray-sles15-zen3/cce-14.0.0/gsl-2.7-h4n6ahxzbtuyyx3qvg3xf26bs7jsd2u5/lib)
+target_link_libraries(WarpX PUBLIC ${GSL_LIBRARY})
+#target_link_libraries(WarpX PUBLIC gslcblas)
 
 if(WarpX_PSATD)
     target_link_libraries(ablastr PUBLIC WarpX::thirdparty::FFT)
