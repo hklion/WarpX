@@ -2011,7 +2011,7 @@ PhysicalParticleContainer::Evolve (int lev,
                 if (skip_deposition == false)
                 {
                     // Deposit at t_{n+1/2}
-                    amrex::Real relative_time = -0.5_rt * dt;
+                    amrex::Real relative_time = -0.5_rt * 0.5_rt * dt;
 
                     int* AMREX_RESTRICT ion_lev;
                     if (do_field_ionization){
@@ -2020,7 +2020,8 @@ PhysicalParticleContainer::Evolve (int lev,
                         ion_lev = nullptr;
                     }
                     // Deposit inside domains
-                    DepositCurrent(pti, wp, uxp, uyp, uzp, ion_lev, &jx, &jy, &jz,
+                    for (int i=0; i<2; i++)
+                        DepositCurrent(pti, wp, uxp, uyp, uzp, ion_lev, &jx, &jy, &jz,
                                    0, np_current, thread_num,
                                    lev, lev, dt, relative_time);
 
