@@ -2023,14 +2023,15 @@ PhysicalParticleContainer::Evolve (int lev,
                     for (int i=0; i<2; i++)
                         DepositCurrent(pti, wp, uxp, uyp, uzp, ion_lev, &jx, &jy, &jz,
                                    0, np_current, thread_num,
-                                   lev, lev, dt, relative_time);
+                                   lev, lev, dt * 0.5_rt, relative_time);
 
                     if (has_buffer)
                     {
                         // Deposit in buffers
-                        DepositCurrent(pti, wp, uxp, uyp, uzp, ion_lev, cjx, cjy, cjz,
+                        for (int i=0; i<2; i++)
+                            DepositCurrent(pti, wp, uxp, uyp, uzp, ion_lev, cjx, cjy, cjz,
                                        np_current, np-np_current, thread_num,
-                                       lev, lev-1, dt, relative_time);
+                                       lev, lev-1, dt * 0.5_rt, relative_time);
                     }
                 } // end of "if do_electrostatic == ElectrostaticSolverAlgo::None"
             } // end of "if do_not_push"
