@@ -1436,3 +1436,37 @@ WarpX::ApplyInverseVolumeScalingToChargeDensity (MultiFab* Rho, int lev)
     }
 }
 #endif
+
+// This scales the current by the number of times we subcycle current deposition
+// It is faster to apply this on the grid than to do it particle by particle.
+// It is put here since there isn't another nice place for it.
+void
+WarpX::ApplySubcyclingScalingToCurrentDensity (MultiFab* Jx, MultiFab* Jy, MultiFab* Jz, int n_subcycle, int lev)
+{
+    for ( MFIter mfi(*Jx, TilingIfNotGPU()); mfi.isValid(); ++mfi )
+    {
+
+        Array4<Real> const& Jx_arr = Jx->array(mfi);
+        Array4<Real> const& Jy_arr = Jy->array(mfi);
+        Array4<Real> const& Jz_arr = Jz->array(mfi);
+
+        Box tbx = mfi.tilebox( Jx->ixType().toIntVect(), Jx->nGrowVect());
+        Box tby = mfi.tilebox( Jy->ixType().toIntVect(), Jy->nGrowVect());
+        Box tbz = mfi.tilebox( Jz->ixType().toIntVect(), Jz->nGrowVect());
+
+        // Rescale current by the number of times we've subcycled
+        amrex::ParallelFor(tbx, tby, tbz,
+        [=] AMREX_GPU_DEVICE (int i, int j, int k)
+        {
+            Jx_arr(i,j,k,0) /= n_subcycle;
+        },
+        [=] AMREX_GPU_DEVICE (int i, int j, int k)
+        {
+            Jy_arr(i,j,k,0) /= n_subcycle;
+        },
+        [=] AMREX_GPU_DEVICE (int i, int j, int k)
+        {
+            Jz_arr(i,j,k,0) /= n_subcycle;
+        });
+    }
+}

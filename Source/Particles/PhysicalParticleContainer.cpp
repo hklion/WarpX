@@ -2018,9 +2018,6 @@ PhysicalParticleContainer::Evolve (int lev,
                 // Current Deposition
                 if (skip_deposition == false)
                 {
-                    // Deposit at t_{n+1/2}
-                    amrex::Real relative_time = -0.5_rt * dt;
-
                     int* AMREX_RESTRICT ion_lev;
                     if (do_field_ionization){
                         ion_lev = pti.GetiAttribs(particle_icomps["ionizationLevel"]).dataPtr();
@@ -2028,16 +2025,21 @@ PhysicalParticleContainer::Evolve (int lev,
                         ion_lev = nullptr;
                     }
                     // Deposit inside domains
-                    DepositCurrent(pti, wp, uxp, uyp, uzp, ion_lev, &jx, &jy, &jz,
-                                   0, np_current, thread_num,
-                                   lev, lev, dt, relative_time);
-
-                    if (has_buffer)
+                    for (int i=0; i<WarpX::n_subcycle_current; i++)
                     {
-                        // Deposit in buffers
-                        DepositCurrent(pti, wp, uxp, uyp, uzp, ion_lev, cjx, cjy, cjz,
-                                       np_current, np-np_current, thread_num,
-                                       lev, lev-1, dt, relative_time);
+                        // Deposit at t_{n+1/2}
+                        amrex::Real relative_time = -dt * (2.0_rt * i + 1.0_rt) / (WarpX::n_subcycle_current * 2.0_rt);
+                        DepositCurrent(pti, wp, uxp, uyp, uzp, ion_lev, &jx, &jy, &jz,
+                                   0, np_current, thread_num,
+                                   lev, lev, dt / WarpX::n_subcycle_current, relative_time);
+                        
+                        if (has_buffer)
+                        {
+                            // Deposit in buffers
+                            DepositCurrent(pti, wp, uxp, uyp, uzp, ion_lev, cjx, cjy, cjz,
+                                           np_current, np-np_current, thread_num,
+                                           lev, lev-1, dt / WarpX::n_subcycle_current, relative_time);
+                        }
                     }
                 } // end of "if electrostatic_solver_id == ElectrostaticSolverAlgo::None"
             } // end of "if do_not_push"

@@ -169,6 +169,13 @@ public:
      *  lower domain boundaries
      *  (0 to 6 correspond to PML, Periodic, PEC, PMC, Damped, Absorbing Silver-Mueller, None)
      */
+    //! Bool whether or not to subcycle current deposition
+    static bool do_subcycle_current;
+    //! Integer that corresponds to the number of times current deposition is subcycled
+    static int n_subcycle_current;
+    /** Records a number corresponding to the load balance cost update strategy
+     *  being used (0, 1, 2 corresponding to timers, heuristic, or gpuclock).
+     */
     static amrex::Vector<int> field_boundary_lo;
     /** Integers that correspond to boundary condition applied to fields at the
      *  upper domain boundaries
@@ -548,6 +555,12 @@ public:
     void ApplyInverseVolumeScalingToChargeDensity(amrex::MultiFab* Rho,
                                                   int lev);
 #endif
+
+    void ApplySubcyclingScalingToCurrentDensity (amrex::MultiFab* Jx,
+                                                   amrex::MultiFab* Jy,
+                                                   amrex::MultiFab* Jz,
+                                                   int n_subcycle,
+                                                   int lev);
 
     void ApplyEfieldBoundary (const int lev, PatchType patch_type);
     void ApplyBfieldBoundary (const int lev, PatchType patch_type, DtType dt_type);
