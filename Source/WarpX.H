@@ -562,6 +562,11 @@ public:
                                                   int lev);
 #endif
 
+    void ApplySubcyclingScalingToCurrentDensity (amrex::MultiFab* Jx,
+                                                   amrex::MultiFab* Jy,
+                                                   amrex::MultiFab* Jz,
+                                                   int lev);
+
     void ApplyEfieldBoundary (const int lev, PatchType patch_type);
     void ApplyBfieldBoundary (const int lev, PatchType patch_type, DtType dt_type);
 
