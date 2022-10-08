@@ -2010,7 +2010,6 @@ PhysicalParticleContainer::Evolve (int lev,
                 // Current Deposition
                 if (skip_deposition == false)
                 {
-                    int n_subcycle = 2;
                     int* AMREX_RESTRICT ion_lev;
                     if (do_field_ionization){
                         ion_lev = pti.GetiAttribs(particle_icomps["ionizationLevel"]).dataPtr();
@@ -2018,21 +2017,20 @@ PhysicalParticleContainer::Evolve (int lev,
                         ion_lev = nullptr;
                     }
                     // Deposit inside domains
-                    for (int i=0; i<n_subcycle; i++)
+                    for (int i=0; i<WarpX::n_subcycle_current; i++)
                     {
                         // Deposit at t_{n+1/2}
-                        amrex::Real relative_time = (2.0_rt * i + 1.0_rt) / (n_subcycle * 2.0_rt);
+                        amrex::Real relative_time = -dt * (2.0_rt * i + 1.0_rt) / (WarpX::n_subcycle_current * 2.0_rt);
                         DepositCurrent(pti, wp, uxp, uyp, uzp, ion_lev, &jx, &jy, &jz,
                                    0, np_current, thread_num,
-                                   lev, lev, dt / n_subcycle, relative_time);
+                                   lev, lev, dt / WarpX::n_subcycle_current, relative_time);
                         
                         if (has_buffer)
                         {
                             // Deposit in buffers
-                            for (int i=0; i<2; i++)
-                                DepositCurrent(pti, wp, uxp, uyp, uzp, ion_lev, cjx, cjy, cjz,
+                            DepositCurrent(pti, wp, uxp, uyp, uzp, ion_lev, cjx, cjy, cjz,
                                            np_current, np-np_current, thread_num,
-                                           lev, lev-1, dt / n_subcycle, relative_time);
+                                           lev, lev-1, dt / WarpX::n_subcycle_current, relative_time);
                         }
                     }
                 } // end of "if do_electrostatic == ElectrostaticSolverAlgo::None"

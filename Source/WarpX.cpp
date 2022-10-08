@@ -129,6 +129,8 @@ bool WarpX::do_divb_cleaning = false;
 int WarpX::em_solver_medium;
 int WarpX::macroscopic_solver_algo;
 bool WarpX::do_single_precision_comms = false;
+bool WarpX::do_subcycle_current = false;
+int WarpX::n_subcycle_current = 1;
 amrex::Vector<int> WarpX::field_boundary_lo(AMREX_SPACEDIM,0);
 amrex::Vector<int> WarpX::field_boundary_hi(AMREX_SPACEDIM,0);
 amrex::Vector<ParticleBoundaryType> WarpX::particle_boundary_lo(AMREX_SPACEDIM,ParticleBoundaryType::Absorbing);
@@ -991,6 +993,15 @@ WarpX::ReadParameters ()
         em_solver_medium = GetAlgorithmInteger(pp_algo, "em_solver_medium");
         if (em_solver_medium == MediumForEM::Macroscopic ) {
             macroscopic_solver_algo = GetAlgorithmInteger(pp_algo,"macroscopic_sigma_method");
+        }
+
+        queryWithParser(pp_algo, "do_subcycle_current", do_subcycle_current);
+        if (do_subcycle_current) {
+            bool found_subcycle_current = queryWithParser(pp_algo, "n_subcycle_current", n_subcycle_current);
+            if (! found_subcycle_current) {
+                amrex::Abort(Utils::TextMsg::Err("If do_subcycle_current is true,"
+                                                "n_subcycle_current must be specified"));
+            }
         }
 
         // Load balancing parameters

@@ -958,8 +958,8 @@ WarpX::PushParticlesandDepose (int lev, amrex::Real cur_time, DtType a_dt_type, 
         }
     }
 #endif
-    if (! skip_deposition) {
-        ApplySubcyclingScalingToCurrentDensity(current_fp[lev][0].get(), current_fp[lev][1].get(), current_fp[lev][2].get(), lev);
+    if ((! skip_deposition) && (do_subcycle_current)) {
+        ApplySubcyclingScalingToCurrentDensity(current_fp[lev][0].get(), current_fp[lev][1].get(), current_fp[lev][2].get(), n_subcycle_current, lev);
     }
 }
 

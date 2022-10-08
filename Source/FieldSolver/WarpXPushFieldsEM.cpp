@@ -1432,17 +1432,12 @@ WarpX::ApplyInverseVolumeScalingToChargeDensity (MultiFab* Rho, int lev)
 }
 #endif
 
-// This scales the current by the inverse volume and wraps around the depostion at negative radius.
+// This scales the current by the number of times we subcycle current deposition
 // It is faster to apply this on the grid than to do it particle by particle.
 // It is put here since there isn't another nice place for it.
 void
-WarpX::ApplySubcyclingScalingToCurrentDensity (MultiFab* Jx, MultiFab* Jy, MultiFab* Jz, int lev)
+WarpX::ApplySubcyclingScalingToCurrentDensity (MultiFab* Jx, MultiFab* Jy, MultiFab* Jz, int n_subcycle, int lev)
 {
-    const amrex::IntVect ngJ = Jx->nGrowVect();
-    const int n_subcycle = 2;
-
-    constexpr int NODE = amrex::IndexType::NODE;
-
     for ( MFIter mfi(*Jx, TilingIfNotGPU()); mfi.isValid(); ++mfi )
     {
 

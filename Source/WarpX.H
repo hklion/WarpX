@@ -155,9 +155,7 @@ public:
     static short particle_pusher_algo;
     //! Integer that corresponds to the type of Maxwell solver (Yee, CKC, PSATD, ECT)
     static short maxwell_solver_id;
-    /** Records a number corresponding to the load balance cost update strategy
-     *  being used (0, 1, 2 corresponding to timers, heuristic, or gpuclock).
-     */
+    //! Bool whether or not to subcycle current deposition
     static short load_balance_costs_update_algo;
     //! Integer that corresponds to electromagnetic Maxwell solver (vaccum - 0, macroscopic - 1)
     static int em_solver_medium;
@@ -168,6 +166,12 @@ public:
     /** Integers that correspond to boundary condition applied to fields at the
      *  lower domain boundaries
      *  (0 to 6 correspond to PML, Periodic, PEC, PMC, Damped, Absorbing Silver-Mueller, None)
+     */
+    static bool do_subcycle_current;
+    //! Integer that corresponds to the number of times current deposition is subcycled
+    static int n_subcycle_current;
+    /** Records a number corresponding to the load balance cost update strategy
+     *  being used (0, 1, 2 corresponding to timers, heuristic, or gpuclock).
      */
     static amrex::Vector<int> field_boundary_lo;
     /** Integers that correspond to boundary condition applied to fields at the
@@ -565,6 +569,7 @@ public:
     void ApplySubcyclingScalingToCurrentDensity (amrex::MultiFab* Jx,
                                                    amrex::MultiFab* Jy,
                                                    amrex::MultiFab* Jz,
+                                                   int n_subcycle,
                                                    int lev);
 
     void ApplyEfieldBoundary (const int lev, PatchType patch_type);
