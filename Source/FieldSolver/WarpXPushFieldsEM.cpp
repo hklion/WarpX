@@ -1445,10 +1445,9 @@ WarpX::ApplySubcyclingScalingToCurrentDensity (MultiFab* Jx, MultiFab* Jy, Multi
         Array4<Real> const& Jy_arr = Jy->array(mfi);
         Array4<Real> const& Jz_arr = Jz->array(mfi);
 
-        Box const & tilebox = mfi.tilebox();
-        Box tbx = convert( tilebox, Jx->ixType().toIntVect() );
-        Box tby = convert( tilebox, Jy->ixType().toIntVect() );
-        Box tbz = convert( tilebox, Jz->ixType().toIntVect() );
+        Box tbx = mfi.tilebox( Jx->ixType().toIntVect(), Jx->nGrowVect());
+        Box tby = mfi.tilebox( Jy->ixType().toIntVect(), Jy->nGrowVect());
+        Box tbz = mfi.tilebox( Jz->ixType().toIntVect(), Jz->nGrowVect());
 
         // Rescale current by the number of times we've subcycled
         amrex::ParallelFor(tbx, tby, tbz,
