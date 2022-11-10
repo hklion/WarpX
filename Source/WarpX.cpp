@@ -1018,9 +1018,9 @@ WarpX::ReadParameters ()
             macroscopic_solver_algo = GetAlgorithmInteger(pp_algo,"macroscopic_sigma_method");
         }
 
-        queryWithParser(pp_algo, "do_subcycle_current", do_subcycle_current);
+        utils::parser::queryWithParser(pp_algo, "do_subcycle_current", do_subcycle_current);
         if (do_subcycle_current) {
-            bool found_subcycle_current = queryWithParser(pp_algo, "n_subcycle_current", n_subcycle_current);
+            bool found_subcycle_current = utils::parser::queryWithParser(pp_algo, "n_subcycle_current", n_subcycle_current);
             if (! found_subcycle_current) {
                 amrex::Abort(Utils::TextMsg::Err("If do_subcycle_current is true,"
                                                 "n_subcycle_current must be specified"));
