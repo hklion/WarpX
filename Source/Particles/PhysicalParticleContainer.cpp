@@ -2032,7 +2032,7 @@ PhysicalParticleContainer::Evolve (int lev,
                         DepositCurrent(pti, wp, uxp, uyp, uzp, ion_lev, &jx, &jy, &jz,
                                    0, np_current, thread_num,
                                    lev, lev, dt / WarpX::n_subcycle_current, relative_time);
-                        
+
                         if (has_buffer)
                         {
                             // Deposit in buffers
