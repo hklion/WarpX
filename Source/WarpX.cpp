@@ -974,6 +974,9 @@ WarpX::ReadParameters ()
                 amrex::Abort(Utils::TextMsg::Err("If do_subcycle_current is true,"
                                                 "n_subcycle_current must be specified"));
             }
+            if (n_subcycle_current < 1) {
+                amrex::Abort(Utils::TextMsg::Err("n_subcycle_current must be greater than or equal to 1"));
+            }
         }
 
         // Load balancing parameters
