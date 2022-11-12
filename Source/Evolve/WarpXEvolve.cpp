@@ -962,7 +962,6 @@ WarpX::PushParticlesandDepose (int lev, amrex::Real cur_time, DtType a_dt_type, 
     }
 }
 
-
 /* \brief Apply perfect mirror condition inside the box (not at a boundary).
  * In practice, set all fields to 0 on a section of the simulation domain
  * (as for a perfect conductor with a given thickness).
