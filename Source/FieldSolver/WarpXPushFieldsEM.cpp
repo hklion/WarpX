@@ -1443,6 +1443,7 @@ WarpX::ApplyInverseVolumeScalingToChargeDensity (MultiFab* Rho, int lev)
 void
 WarpX::ApplySubcyclingScalingToCurrentDensity (MultiFab* Jx, MultiFab* Jy, MultiFab* Jz, int n_subcycle, int lev)
 {
+    amrex::ignore_unused(lev);
     for ( MFIter mfi(*Jx, TilingIfNotGPU()); mfi.isValid(); ++mfi )
     {
 
