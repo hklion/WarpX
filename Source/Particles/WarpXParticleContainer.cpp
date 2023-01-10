@@ -380,6 +380,8 @@ WarpXParticleContainer::DepositCurrent (WarpXParIter& pti,
         tilebox = amrex::coarsen(pti.tilebox(),ref_ratio);
     }
 
+    const Real ppc_avg = static_cast<Real>(np_to_depose)/static_cast<Real>(tilebox.numPts());
+
 #ifndef AMREX_USE_GPU
     // Staggered tile boxes (different in each direction)
     Box tbx = convert( tilebox, jx->ixType().toIntVect() );
@@ -444,21 +446,21 @@ WarpXParticleContainer::DepositCurrent (WarpXParIter& pti,
             doEsirkepovDepositionShapeN<1>(
                 GetPosition, wp.dataPtr() + offset, uxp.dataPtr() + offset,
                 uyp.dataPtr() + offset, uzp.dataPtr() + offset, ion_lev,
-                jx_arr, jy_arr, jz_arr, np_to_depose, dt, relative_time, dx, xyzmin, lo, q,
+                jx_arr, jy_arr, jz_arr, np_to_depose, ppc_avg, dt, relative_time, dx, xyzmin, lo, q,
                 WarpX::n_rz_azimuthal_modes, cost,
                 WarpX::load_balance_costs_update_algo);
         } else if (WarpX::nox == 2){
             doEsirkepovDepositionShapeN<2>(
                 GetPosition, wp.dataPtr() + offset, uxp.dataPtr() + offset,
                 uyp.dataPtr() + offset, uzp.dataPtr() + offset, ion_lev,
-                jx_arr, jy_arr, jz_arr, np_to_depose, dt, relative_time, dx, xyzmin, lo, q,
+                jx_arr, jy_arr, jz_arr, np_to_depose, ppc_avg, dt, relative_time, dx, xyzmin, lo, q,
                 WarpX::n_rz_azimuthal_modes, cost,
                 WarpX::load_balance_costs_update_algo);
         } else if (WarpX::nox == 3){
             doEsirkepovDepositionShapeN<3>(
                 GetPosition, wp.dataPtr() + offset, uxp.dataPtr() + offset,
                 uyp.dataPtr() + offset, uzp.dataPtr() + offset, ion_lev,
-                jx_arr, jy_arr, jz_arr, np_to_depose, dt, relative_time, dx, xyzmin, lo, q,
+                jx_arr, jy_arr, jz_arr, np_to_depose, ppc_avg, dt, relative_time, dx, xyzmin, lo, q,
                 WarpX::n_rz_azimuthal_modes, cost,
                 WarpX::load_balance_costs_update_algo);
         }
