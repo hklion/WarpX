@@ -431,6 +431,10 @@ void doEsirkepovDepositionShapeN (const GetParticlePosition& GetPosition,
     Real constexpr one_sixth = 1.0_rt / 6.0_rt;
 #endif
 
+#if defined(AMREX_USE_GPU)
+    const bool cyclic_schedule = true; // (ppc_avg > 3._rt); 3 for crusher and 8 for summit and perlmutter?
+#endif
+
     // Loop over particles and deposit into Jx_arr, Jy_arr and Jz_arr
 #if defined(WARPX_USE_GPUCLOCK)
     amrex::Real* cost_real = nullptr;
@@ -439,11 +443,6 @@ void doEsirkepovDepositionShapeN (const GetParticlePosition& GetPosition,
         *cost_real = 0._rt;
     }
 #endif
-
-#if defined(AMREX_USE_GPU)
-    const bool cyclic_schedule = true; // (ppc_avg > 3._rt); 3 for crusher and 8 for summit?
-#endif
-
     amrex::ParallelFor(
         np_to_depose,
         [=] AMREX_GPU_DEVICE (long const ip) {
@@ -753,6 +752,7 @@ void doEsirkepovDepositionShapeN (const GetParticlePosition& GetPosition,
                            is a scalar. For non-ionizable species, \c ion_lev is \c null
  * \param[in,out] Dx_fab,Dy_fab,Dz_fab FArrayBox of Vay current density, either full array or tile
  * \param[in] np_to_depose Number of particles for which current is deposited
+ * \param[in] ppc_vag      Average number of particles per cell
  * \param[in] dt           Time step for particle level
  * \param[in] relative_time Time at which to deposit D, relative to the time of the
  *                          current positions of the particles. When different than 0,
@@ -778,6 +778,7 @@ void doVayDepositionShapeN (const GetParticlePosition& GetPosition,
                             amrex::FArrayBox& Dy_fab,
                             amrex::FArrayBox& Dz_fab,
                             const long np_to_depose,
+                            const amrex::Real ppc_avg,
                             const amrex::Real dt,
                             const amrex::Real relative_time,
                             const std::array<amrex::Real,3>& dx,
@@ -854,6 +855,10 @@ void doVayDepositionShapeN (const GetParticlePosition& GetPosition,
     amrex::Array4<amrex::Real> const& Dx_arr = Dx_fab.array();
     amrex::Array4<amrex::Real> const& Dy_arr = Dy_fab.array();
     amrex::Array4<amrex::Real> const& Dz_arr = Dz_fab.array();
+
+#if defined(AMREX_USE_GPU)
+    const bool cyclic_schedule = true; // (ppc_avg > ?._rt); ? for crusher and ? for perlmutter?
+#endif
 
     // Loop over particles and deposit (Dx,Dy,Dz) into Dx_fab, Dy_fab and Dz_fab
 #if defined(WARPX_USE_GPUCLOCK)
@@ -1009,63 +1014,129 @@ void doVayDepositionShapeN (const GetParticlePosition& GetPosition,
 
 #elif defined(WARPX_DIM_3D)
 
-        for (int k=0; k<=depos_order; k++) {
-            for (int j=0; j<=depos_order; j++) {
-
+#if defined(AMREX_USE_GPU)
+        if (cyclic_schedule) {
+            const int offset = static_cast<int>(ip%1024);
+            constexpr int n2d = (depos_order+1)*(depos_order+1);
+            constexpr int n3d = (depos_order+1)*n2d;
+            for (int i3d = 0; i3d < n3d; ++i3d) {
+                int ijk = (i3d+offset) % n3d;
+                int k = ijk / n2d;
+                int j = (ijk - k*n2d) / (depos_order+1);
+                int i = (ijk - k*n2d) - j * (depos_order+1);
                 auto const syn_szn = static_cast<amrex::Real>(sy_new[j] * sz_new[k]);
                 auto const syo_szn = static_cast<amrex::Real>(sy_old[j] * sz_new[k]);
                 auto const syn_szo = static_cast<amrex::Real>(sy_new[j] * sz_old[k]);
                 auto const syo_szo = static_cast<amrex::Real>(sy_old[j] * sz_old[k]);
+                auto const sxn_syn_szn = static_cast<amrex::Real>(sx_new[i]) * syn_szn;
+                auto const sxo_syn_szn = static_cast<amrex::Real>(sx_old[i]) * syn_szn;
+                auto const sxn_syo_szn = static_cast<amrex::Real>(sx_new[i]) * syo_szn;
+                auto const sxo_syo_szn = static_cast<amrex::Real>(sx_old[i]) * syo_szn;
+                auto const sxn_syn_szo = static_cast<amrex::Real>(sx_new[i]) * syn_szo;
+                auto const sxo_syn_szo = static_cast<amrex::Real>(sx_old[i]) * syn_szo;
+                auto const sxn_syo_szo = static_cast<amrex::Real>(sx_new[i]) * syo_szo;
+                auto const sxo_syo_szo = static_cast<amrex::Real>(sx_old[i]) * syo_szo;
+                if (i_new == i_old && j_new == j_old && k_new == k_old) {
+                    // temp arrays for Dx, Dy and Dz
+                    amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_new + k, 0),
+                                wq * invvol * invdt * (sxn_syn_szn - sxo_syo_szo));
 
-                for (int i=0; i<=depos_order; i++) {
+                    amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_new + k, 1),
+                                wq * invvol * invdt * (sxn_syn_szo - sxo_syo_szn));
 
-                    auto const sxn_syn_szn = static_cast<amrex::Real>(sx_new[i]) * syn_szn;
-                    auto const sxo_syn_szn = static_cast<amrex::Real>(sx_old[i]) * syn_szn;
-                    auto const sxn_syo_szn = static_cast<amrex::Real>(sx_new[i]) * syo_szn;
-                    auto const sxo_syo_szn = static_cast<amrex::Real>(sx_old[i]) * syo_szn;
-                    auto const sxn_syn_szo = static_cast<amrex::Real>(sx_new[i]) * syn_szo;
-                    auto const sxo_syn_szo = static_cast<amrex::Real>(sx_old[i]) * syn_szo;
-                    auto const sxn_syo_szo = static_cast<amrex::Real>(sx_new[i]) * syo_szo;
-                    auto const sxo_syo_szo = static_cast<amrex::Real>(sx_old[i]) * syo_szo;
+                    amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_new + k, 2),
+                                wq * invvol * invdt * (sxn_syo_szn - sxo_syn_szo));
 
-                    if (i_new == i_old && j_new == j_old && k_new == k_old) {
-                        // temp arrays for Dx, Dy and Dz
-                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_new + k, 0),
-                            wq * invvol * invdt * (sxn_syn_szn - sxo_syo_szo));
+                    amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_new + k, 3),
+                                wq * invvol * invdt * (sxo_syn_szn - sxn_syo_szo));
+                } else {
+                    // temp arrays for Dx, Dy and Dz
+                    amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_new + k, 0),
+                                wq * invvol * invdt * sxn_syn_szn);
 
-                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_new + k, 1),
-                            wq * invvol * invdt * (sxn_syn_szo - sxo_syo_szn));
+                    amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_old + i, lo.y + j_old + j, lo.z + k_old + k, 0),
+                                - wq * invvol * invdt * sxo_syo_szo);
 
-                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_new + k, 2),
-                            wq * invvol * invdt * (sxn_syo_szn - sxo_syn_szo));
+                    amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_old + k, 1),
+                                wq * invvol * invdt * sxn_syn_szo);
 
-                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_new + k, 3),
-                            wq * invvol * invdt * (sxo_syn_szn - sxn_syo_szo));
-                    } else {
-                        // temp arrays for Dx, Dy and Dz
-                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_new + k, 0),
-                            wq * invvol * invdt * sxn_syn_szn);
+                    amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_old + i, lo.y + j_old + j, lo.z + k_new + k, 1),
+                                - wq * invvol * invdt * sxo_syo_szn);
 
-                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_old + i, lo.y + j_old + j, lo.z + k_old + k, 0),
-                            - wq * invvol * invdt * sxo_syo_szo);
+                    amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_old + j, lo.z + k_new + k, 2),
+                                wq * invvol * invdt * sxn_syo_szn);
 
-                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_old + k, 1),
-                            wq * invvol * invdt * sxn_syn_szo);
+                    amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_old + i, lo.y + j_new + j, lo.z + k_old + k, 2),
+                                - wq * invvol * invdt * sxo_syn_szo);
 
-                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_old + i, lo.y + j_old + j, lo.z + k_new + k, 1),
-                            - wq * invvol * invdt * sxo_syo_szn);
+                    amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_old + i, lo.y + j_new + j, lo.z + k_new + k, 3),
+                                wq * invvol * invdt * sxo_syn_szn);
 
-                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_old + j, lo.z + k_new + k, 2),
-                            wq * invvol * invdt * sxn_syo_szn);
+                    amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_old + j, lo.z + k_old + k, 3),
+                                - wq * invvol * invdt * sxn_syo_szo);
+                }
+            }
+        } else
+#endif
+        {
+            for (int k=0; k<=depos_order; k++) {
+                for (int j=0; j<=depos_order; j++) {
 
-                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_old + i, lo.y + j_new + j, lo.z + k_old + k, 2),
-                            - wq * invvol * invdt * sxo_syn_szo);
+                    auto const syn_szn = static_cast<amrex::Real>(sy_new[j] * sz_new[k]);
+                    auto const syo_szn = static_cast<amrex::Real>(sy_old[j] * sz_new[k]);
+                    auto const syn_szo = static_cast<amrex::Real>(sy_new[j] * sz_old[k]);
+                    auto const syo_szo = static_cast<amrex::Real>(sy_old[j] * sz_old[k]);
 
-                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_old + i, lo.y + j_new + j, lo.z + k_new + k, 3),
-                            wq * invvol * invdt * sxo_syn_szn);
+                    for (int i=0; i<=depos_order; i++) {
 
-                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_old + j, lo.z + k_old + k, 3),
-                            - wq * invvol * invdt * sxn_syo_szo);
+                        auto const sxn_syn_szn = static_cast<amrex::Real>(sx_new[i]) * syn_szn;
+                        auto const sxo_syn_szn = static_cast<amrex::Real>(sx_old[i]) * syn_szn;
+                        auto const sxn_syo_szn = static_cast<amrex::Real>(sx_new[i]) * syo_szn;
+                        auto const sxo_syo_szn = static_cast<amrex::Real>(sx_old[i]) * syo_szn;
+                        auto const sxn_syn_szo = static_cast<amrex::Real>(sx_new[i]) * syn_szo;
+                        auto const sxo_syn_szo = static_cast<amrex::Real>(sx_old[i]) * syn_szo;
+                        auto const sxn_syo_szo = static_cast<amrex::Real>(sx_new[i]) * syo_szo;
+                        auto const sxo_syo_szo = static_cast<amrex::Real>(sx_old[i]) * syo_szo;
+
+                        if (i_new == i_old && j_new == j_old && k_new == k_old) {
+                            // temp arrays for Dx, Dy and Dz
+                            amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_new + k, 0),
+                                wq * invvol * invdt * (sxn_syn_szn - sxo_syo_szo));
+
+                            amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_new + k, 1),
+                                wq * invvol * invdt * (sxn_syn_szo - sxo_syo_szn));
+
+                            amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_new + k, 2),
+                                wq * invvol * invdt * (sxn_syo_szn - sxo_syn_szo));
+
+                            amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_new + k, 3),
+                                wq * invvol * invdt * (sxo_syn_szn - sxn_syo_szo));
+                        } else {
+                            // temp arrays for Dx, Dy and Dz
+                            amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_new + k, 0),
+                                wq * invvol * invdt * sxn_syn_szn);
+
+                            amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_old + i, lo.y + j_old + j, lo.z + k_old + k, 0),
+                                - wq * invvol * invdt * sxo_syo_szo);
+
+                            amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_new + j, lo.z + k_old + k, 1),
+                                wq * invvol * invdt * sxn_syn_szo);
+
+                            amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_old + i, lo.y + j_old + j, lo.z + k_new + k, 1),
+                                - wq * invvol * invdt * sxo_syo_szn);
+
+                            amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_old + j, lo.z + k_new + k, 2),
+                                wq * invvol * invdt * sxn_syo_szn);
+
+                            amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_old + i, lo.y + j_new + j, lo.z + k_old + k, 2),
+                                - wq * invvol * invdt * sxo_syn_szo);
+
+                            amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_old + i, lo.y + j_new + j, lo.z + k_new + k, 3),
+                                wq * invvol * invdt * sxo_syn_szn);
+
+                            amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + j_old + j, lo.z + k_old + k, 3),
+                                - wq * invvol * invdt * sxn_syo_szo);
+                        }
                     }
                 }
             }
