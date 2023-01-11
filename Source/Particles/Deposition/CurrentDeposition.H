@@ -960,9 +960,14 @@ void doVayDepositionShapeN (const GetParticlePosition& GetPosition,
         // Deposit current into Dx_arr, Dy_arr and Dz_arr
 #if defined(WARPX_DIM_XZ)
 
-        for (int k=0; k<=depos_order; k++) {
-            for (int i=0; i<=depos_order; i++) {
-
+#if defined(AMREX_USE_GPU)
+        if (cyclic_schedule) {
+            const int offset = static_cast<int>(ip%1024);
+            constexpr int n2d = (depos_order+1)*(depos_order+1);
+            for (int i2d = 0; i2d < n2d; ++i2d) {
+                int ik = (i2d+offset) % n2d;
+                int k = ik / (depos_order+1);
+                int i = ik - k*(depos_order+1);
                 // Re-casting sx_new and sz_new from double to amrex::Real so that
                 // Atomic::Add has consistent types in its argument
                 auto const sxn_szn = static_cast<amrex::Real>(sx_new[i] * sz_new[k]);
@@ -1008,7 +1013,60 @@ void doVayDepositionShapeN (const GetParticlePosition& GetPosition,
                     amrex::Gpu::Atomic::AddNoRet(&Dy_arr(lo.x + i_old + i, lo.y + k_old + k, 0, 0),
                         wqy * 0.25_rt * sxo_szo);
                 }
+            }
+        } else
+#endif
+        {
+            for (int k=0; k<=depos_order; k++) {
+                for (int i=0; i<=depos_order; i++) {
 
+                    // Re-casting sx_new and sz_new from double to amrex::Real so that
+                    // Atomic::Add has consistent types in its argument
+                    auto const sxn_szn = static_cast<amrex::Real>(sx_new[i] * sz_new[k]);
+                    auto const sxo_szn = static_cast<amrex::Real>(sx_old[i] * sz_new[k]);
+                    auto const sxn_szo = static_cast<amrex::Real>(sx_new[i] * sz_old[k]);
+                    auto const sxo_szo = static_cast<amrex::Real>(sx_old[i] * sz_old[k]);
+
+                    if (i_new == i_old && k_new == k_old) {
+                        // temp arrays for Dx and Dz
+                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + k_new + k, 0, 0),
+                            wq * invvol * invdt * (sxn_szn - sxo_szo));
+
+                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + k_new + k, 0, 1),
+                            wq * invvol * invdt * (sxn_szo - sxo_szn));
+
+                        // Dy
+                        amrex::Gpu::Atomic::AddNoRet(&Dy_arr(lo.x + i_new + i, lo.y + k_new + k, 0, 0),
+                            wqy * 0.25_rt * (sxn_szn + sxn_szo + sxo_szn + sxo_szo));
+                    } else {
+                        // temp arrays for Dx and Dz
+                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + k_new + k, 0, 0),
+                            wq * invvol * invdt * sxn_szn);
+
+                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_old + i, lo.y + k_old + k, 0, 0),
+                            - wq * invvol * invdt * sxo_szo);
+
+                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_new + i, lo.y + k_old + k, 0, 1),
+                            wq * invvol * invdt * sxn_szo);
+
+                        amrex::Gpu::Atomic::AddNoRet(&temp_arr(lo.x + i_old + i, lo.y + k_new + k, 0, 1),
+                            - wq * invvol * invdt * sxo_szn);
+
+                        // Dy
+                        amrex::Gpu::Atomic::AddNoRet(&Dy_arr(lo.x + i_new + i, lo.y + k_new + k, 0, 0),
+                            wqy * 0.25_rt * sxn_szn);
+
+                        amrex::Gpu::Atomic::AddNoRet(&Dy_arr(lo.x + i_new + i, lo.y + k_old + k, 0, 0),
+                            wqy * 0.25_rt * sxn_szo);
+
+                        amrex::Gpu::Atomic::AddNoRet(&Dy_arr(lo.x + i_old + i, lo.y + k_new + k, 0, 0),
+                            wqy * 0.25_rt * sxo_szn);
+
+                        amrex::Gpu::Atomic::AddNoRet(&Dy_arr(lo.x + i_old + i, lo.y + k_old + k, 0, 0),
+                            wqy * 0.25_rt * sxo_szo);
+                    }
+
+                }
             }
         }
 
