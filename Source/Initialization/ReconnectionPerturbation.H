@@ -90,15 +90,30 @@ public:
         amrex::Real x_eval = fabs(x);
 
         amrex::Real term1 = pi_val/4._rt * (x_eval - 2._rt * xcs);
+
+        // The terms with a log of cosh will return inf if the combination of x and delta is too
+        // large. The limit as x_eval-> infinity is finite, so we can just make the subsitutions
+        amrex::Real logcosh_minus, logcosh_plus;
+        if ((x_eval - xcs) / delta > 700._rt)
+            logcosh_minus = x_eval - xcs + delta * std::log(0.5_rt);
+        else logcosh_minus = delta * std::log( std::cosh ( (x_eval-xcs) / delta));
+
+        if ((x_eval + xcs) / delta > 700._rt)
+            logcosh_plus = x_eval + xcs + delta * std::log(0.5_rt);
+        else logcosh_plus = delta * std::log( std::cosh ( (x_eval+xcs) / delta));
         amrex::Real term2 = 0.5_rt * (nd_ratio - 1._rt)
-                          * ( delta * std::log( std::cosh ( (x_eval-xcs) / delta) )
-                            - delta * std::log( std::cosh ( (x_eval+xcs) / delta) )
+                          * ( logcosh_minus - logcosh_plus
                             + x_eval
                             );
         Complex term3 = delta * i / 2.0_rt
                                      * ( getComplexDilog( -i * std::exp( -(x_eval-xcs)/delta) )
                                        - getComplexDilog(  i * std::exp( -(x_eval-xcs)/delta) )
                                        );
+        // The above line will give a nan if (x_eval-xcs)/delta is too negative. To avoid this,
+        // take advantage of the identity Li2(1/z) = -Li2(z) - pi^2/6 - 1/2 log^2(-x).
+        // The left-hand Li2 term will be ~zero in this case, so it simplifies nicely.
+        // Add a special case to do the substitution
+        if ((x_eval-xcs) / delta < -350._rt) term3 = -0.5_rt * pi_val * (x_eval - xcs);
         Complex term4 = - delta * i / 2.0_rt
                                      * ( getComplexDilog( -i * std::exp( -(x_eval+xcs)/delta) )
                                        - getComplexDilog(  i * std::exp( -(x_eval+xcs)/delta) )
