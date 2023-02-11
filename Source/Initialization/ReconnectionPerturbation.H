@@ -105,14 +105,20 @@ public:
                           * ( logcosh_minus - logcosh_plus
                             + x_eval
                             );
-        Complex term3 = delta * i / 2.0_rt
-                                     * ( getComplexDilog( -i * std::exp( -(x_eval-xcs)/delta) )
-                                       - getComplexDilog(  i * std::exp( -(x_eval-xcs)/delta) )
-                                       );
-        // The above line will give a nan if (x_eval-xcs)/delta is too negative. To avoid this,
-        // take advantage of the identity Li2(1/z) = -Li2(z) - pi^2/6 - 1/2 log^2(-x).
+        // The dilog expression for term3 is nan if (x_eval-xcs)/delta is too negative.
+        // To avoid this, take advantage of the identity Li2(1/z) = -Li2(z) - pi^2/6 - 1/2 log^2(-x).
         // The left-hand Li2 term will be ~zero in this case, so it simplifies nicely.
         // Add a special case to do the substitution
+        Complex term3;
+        if ((x_eval-xcs) / delta < -350._rt) {
+            term3 = -0.5_rt * pi_val * (x_eval - xcs);
+        }
+        else {
+            term3 = delta * i / 2.0_rt
+                          * ( getComplexDilog( -i * std::exp( -(x_eval-xcs)/delta) )
+                          - getComplexDilog(  i * std::exp( -(x_eval-xcs)/delta) )
+                          );
+        }
         if ((x_eval-xcs) / delta < -350._rt) term3 = -0.5_rt * pi_val * (x_eval - xcs);
         Complex term4 = - delta * i / 2.0_rt
                                      * ( getComplexDilog( -i * std::exp( -(x_eval+xcs)/delta) )
