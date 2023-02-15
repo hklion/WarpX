@@ -8,7 +8,7 @@
 
 #include "Diagnostics/ReducedDiags/ReducedDiags.H"
 #include "Particles/MultiParticleContainer.H"
-#include "Utils/IntervalsParser.H"
+#include "Utils/TextMsg.H"
 #include "Utils/WarpXAlgorithmSelection.H"
 #include "WarpX.H"
 
@@ -31,6 +31,7 @@
 #include <iomanip>
 #include <istream>
 #include <memory>
+#include <string>
 #include <utility>
 
 using namespace amrex;
@@ -76,19 +77,19 @@ void LoadBalanceCosts::ComputeDiags (int step)
     // get a reference to WarpX instance
     auto& warpx = WarpX::GetInstance();
 
-    const amrex::LayoutData<amrex::Real>* cost = warpx.getCosts(0);
-
     // judge if the diags should be done
     // costs is initialized only if we're doing load balance
     if (!m_intervals.contains(step+1) ||
-          !warpx.get_load_balance_intervals().isActivated() ) { return; }
+        !warpx.get_load_balance_intervals().isActivated() ) { return; }
 
     // get number of boxes over all levels
     auto nLevels = warpx.finestLevel() + 1;
     int nBoxes = 0;
     for (int lev = 0; lev < nLevels; ++lev)
     {
-        cost = warpx.getCosts(lev);
+        const auto cost = warpx.getCosts(lev);
+        WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
+            cost, "ERROR: costs are not initialized on level " + std::to_string(lev) + " !");
         nBoxes += cost->size();
     }
 
@@ -332,7 +333,7 @@ void LoadBalanceCosts::WriteToFile (int step) const
         // open the data-containing file
         std::string fileDataName = m_path + m_rd_name + "." + m_extension;
         std::ifstream ifs(fileDataName, std::ifstream::in);
-        if(!ifs) Abort("Failed to load balance file");
+        WARPX_ALWAYS_ASSERT_WITH_MESSAGE(ifs, "Failed to load balance file");
         ifs.exceptions(std::ios_base::badbit); // | std::ios_base::failbit
 
         // Fill in the tmp costs file with data, padded with NaNs
