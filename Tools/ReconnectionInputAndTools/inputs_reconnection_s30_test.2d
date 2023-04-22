@@ -42,6 +42,7 @@ algo.maxwell_solver = yee
 algo.current_deposition = esirkepov
 algo.field_gathering = energy-conserving
 warpx.use_filter = 1
+amrex.the_arena_is_managed = 1
 #################################
 ########## DIAGNOSTICS ##########
 #################################
