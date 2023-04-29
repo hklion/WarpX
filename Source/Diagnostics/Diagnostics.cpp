@@ -125,6 +125,8 @@ Diagnostics::BaseReadParameters ()
     // Get parser strings for particle fields and generate map of parsers
     std::string parser_str;
     std::string filter_parser_str = "";
+    std::vector<std::string> extra_args;
+    std::vector<std::string> extra_args_filter;
     bool do_parser_filter;
     amrex::ParmParse pp_diag_pfield(m_diag_name + ".particle_fields");
     for (const auto& var : m_pfield_varnames) {
@@ -141,12 +143,26 @@ Diagnostics::BaseReadParameters ()
         );
 
         m_pfield_strings.push_back(parser_str);
+        pp_diag_pfield.queryarr(var + ".extra_args", extra_args);
+        WARPX_ALWAYS_ASSERT_WITH_MESSAGE((extra_args.size() > WARPX_EXTRA_ARGS),
+              "Input error: " + extra_args.size() + " extra arguments for " + var +
+              " were specified, only WARPX_EXTRA_ARGS=" + WARPX_EXTRA_ARGS + " allocated"
+              );
+        m_pfield_extra_args.push_back(extra_args);
 
         // Look for and record filter functions. If one is not found, the empty string will be
         // stored as the filter string, and will be ignored.
         do_parser_filter = pp_diag_pfield.query((var + ".filter(x,y,z,ux,uy,uz)").c_str(), filter_parser_str);
         m_pfield_dofilter.push_back(do_parser_filter);
         m_pfield_filter_strings.push_back(filter_parser_str);
+
+        pp_diag_pfield.queryarr("extra_args_filter", filter_extra_args);
+        WARPX_ALWAYS_ASSERT_WITH_MESSAGE((filter_extra_args.size() > WARPX_EXTRA_ARGS),
+              "Input error: " + filter extra_args.size() + " extra arguments for " + var +
+              "'s filter function were specified, only WARPX_EXTRA_ARGS=" + WARPX_EXTRA_ARGS +
+              " allocated"
+              );
+        m_pfield_filter_extra_args.push_back(filter_extra_args)
     }
 
     // Names of all species in the simulation

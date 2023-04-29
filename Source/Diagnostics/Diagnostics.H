@@ -242,6 +242,10 @@ protected:
     std::vector< bool> m_pfield_dofilter;
     /** List of parser strings for pre-average filtering for the particle field diagnostics */
     std::vector< std::string > m_pfield_filter_strings;
+    /** List of lists of additional arguments to parsers in particle field diagnostics */
+    std::vector< std::vector > m_pfield_extra_args;
+    /** List of lists of additional arguments to filter functions in particle field diagnostics */
+    std::vector< std::vector > m_pfield_filter_extra_args;
 
     /** If true, a dump is performed at the last timestep regardless of the required dump timesteps */
     bool m_dump_last_timestep = true;

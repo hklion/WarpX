@@ -12,6 +12,8 @@
 #ifndef WARPX_H_
 #define WARPX_H_
 
+#define WARPX_EXTRA_PARSER_ARGS 3
+
 #include "BoundaryConditions/PML_fwd.H"
 #include "Diagnostics/MultiDiagnostics_fwd.H"
 #include "Diagnostics/ReducedDiags/MultiReducedDiags_fwd.H"
