@@ -49,7 +49,7 @@ Diagnostics::BaseReadParameters ()
 {
     auto & warpx = WarpX::GetInstance();
 
-    amrex::ParmParse pp_diag_name(m_diag_name);
+    const amrex::ParmParse pp_diag_name(m_diag_name);
     m_file_prefix = "diags/" + m_diag_name;
     pp_diag_name.query("file_prefix", m_file_prefix);
     utils::parser::queryWithParser(
@@ -57,12 +57,12 @@ Diagnostics::BaseReadParameters ()
     pp_diag_name.query("format", m_format);
     pp_diag_name.query("dump_last_timestep", m_dump_last_timestep);
 
-    amrex::ParmParse pp_geometry("geometry");
+    const amrex::ParmParse pp_geometry("geometry");
     std::string dims;
     pp_geometry.get("dims", dims);
 
     // Query list of grid fields to write to output
-    bool varnames_specified = pp_diag_name.queryarr("fields_to_plot", m_varnames_fields);
+    const bool varnames_specified = pp_diag_name.queryarr("fields_to_plot", m_varnames_fields);
     if (!varnames_specified){
         if( dims == "RZ" ) {
             m_varnames_fields = {"Er", "Et", "Ez", "Br", "Bt", "Bz", "jr", "jt", "jz"};
@@ -125,8 +125,7 @@ Diagnostics::BaseReadParameters ()
     // Get parser strings for particle fields and generate map of parsers
     std::string parser_str;
     std::string filter_parser_str = "";
-    bool do_parser_filter;
-    amrex::ParmParse pp_diag_pfield(m_diag_name + ".particle_fields");
+    const amrex::ParmParse pp_diag_pfield(m_diag_name + ".particle_fields");
     for (const auto& var : m_pfield_varnames) {
         bool do_average = true;
         pp_diag_pfield.query((var + ".do_average").c_str(), do_average);
@@ -136,15 +135,14 @@ Diagnostics::BaseReadParameters ()
 
         WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
             parser_str != "",
-            "Input error: cannot find parser string for " + var + " in file. "
-            + m_diag_name + ".particle_fields." + var + "(x,y,z,ux,uy,uz) is required"
-        );
+            std::string("Input error: cannot find parser string for ").append(var).append(" in file. ").append(
+                m_diag_name).append(".particle_fields.").append(var).append("(x,y,z,ux,uy,uz) is required"));
 
         m_pfield_strings.push_back(parser_str);
 
         // Look for and record filter functions. If one is not found, the empty string will be
         // stored as the filter string, and will be ignored.
-        do_parser_filter = pp_diag_pfield.query((var + ".filter(x,y,z,ux,uy,uz,upstream)").c_str(), filter_parser_str);
+        const bool do_parser_filter = pp_diag_pfield.query((var + ".filter(x,y,z,ux,uy,uz,upstream)").c_str(), filter_parser_str);
         m_pfield_dofilter.push_back(do_parser_filter);
         m_pfield_filter_strings.push_back(filter_parser_str);
     }
@@ -159,11 +157,10 @@ Diagnostics::BaseReadParameters ()
     }
 
     // Check that species names specified in m_pfield_species are valid
-    bool p_species_name_is_wrong;
     // Loop over all species specified above
     for (const auto& species : m_pfield_species) {
         // Boolean used to check if species name was misspelled
-        p_species_name_is_wrong = true;
+        bool p_species_name_is_wrong = true;
         // Loop over all species
         for (int i = 0, n = int(m_all_species_names.size()); i < n; i++) {
             if (species == m_all_species_names[i]) {
@@ -189,7 +186,9 @@ Diagnostics::BaseReadParameters ()
     // Generate names of averaged particle fields and append to m_varnames
     for (const auto& fname : m_pfield_varnames) {
         for (const auto& sname : m_pfield_species) {
-            m_varnames.push_back(fname + '_' + sname);
+            auto varname = fname;
+            varname.append("_").append(sname);
+            m_varnames.push_back(varname);
         }
     }
 
@@ -224,7 +223,7 @@ Diagnostics::BaseReadParameters ()
        if (warpx.boost_direction[ dim_map[warpx.moving_window_dir] ] == 1) {
            // Convert user-defined lo and hi for diagnostics to account for boosted-frame
            // simulations with moving window
-           amrex::Real convert_factor = 1._rt/(warpx.gamma_boost * (1._rt - warpx.beta_boost) );
+           const amrex::Real convert_factor = 1._rt/(warpx.gamma_boost * (1._rt - warpx.beta_boost) );
            // Assuming that the window travels with speed c
            m_lo[warpx.moving_window_dir] *= convert_factor;
            m_hi[warpx.moving_window_dir] *= convert_factor;
@@ -248,17 +247,14 @@ Diagnostics::BaseReadParameters ()
         pp_diag_name.queryarr("species", m_output_species_names);
 
 
-    // Auxiliary variables
-    std::string species;
-    bool species_name_is_wrong;
     // Loop over all fields stored in m_varnames
     for (const auto& var : m_varnames) {
         // Check if m_varnames contains a string of the form rho_<species_name>
         if (var.rfind("rho_", 0) == 0) {
             // Extract species name from the string rho_<species_name>
-            species = var.substr(var.find("rho_") + 4);
+            const std::string species = var.substr(var.find("rho_") + 4);
             // Boolean used to check if species name was misspelled
-            species_name_is_wrong = true;
+            bool species_name_is_wrong = true;
             // Loop over all species
             for (int i = 0, n = int(m_all_species_names.size()); i < n; i++) {
                 // Check if species name extracted from the string rho_<species_name>
@@ -325,7 +321,7 @@ Diagnostics::InitDataAfterRestart ()
         }
     }
 
-    amrex::ParmParse pp_diag_name(m_diag_name);
+    const amrex::ParmParse pp_diag_name(m_diag_name);
     // default for writing species output is 1
     int write_species = 1;
     pp_diag_name.query("write_species", write_species);
@@ -404,7 +400,7 @@ Diagnostics::InitData ()
         }
     }
 
-    amrex::ParmParse pp_diag_name(m_diag_name);
+    const amrex::ParmParse pp_diag_name(m_diag_name);
     // default for writing species output is 1
     int write_species = 1;
     pp_diag_name.query("write_species", write_species);
@@ -468,8 +464,8 @@ Diagnostics::InitBaseData ()
     // For restart, move the m_lo and m_hi of the diag consistent with the
     // current moving_window location
     if (warpx.do_moving_window) {
-        int moving_dir = warpx.moving_window_dir;
-        int shift_num_base = static_cast<int>((warpx.getmoving_window_x() - m_lo[moving_dir]) / warpx.Geom(0).CellSize(moving_dir) );
+        const int moving_dir = warpx.moving_window_dir;
+        const int shift_num_base = static_cast<int>((warpx.getmoving_window_x() - m_lo[moving_dir]) / warpx.Geom(0).CellSize(moving_dir) );
         m_lo[moving_dir] += shift_num_base * warpx.Geom(0).CellSize(moving_dir);
         m_hi[moving_dir] += shift_num_base * warpx.Geom(0).CellSize(moving_dir);
     }
@@ -487,19 +483,19 @@ Diagnostics::InitBaseData ()
             dynamic_cast<amrex::AmrMesh*>(const_cast<WarpX*>(&warpx)),
             m_diag_name);
 #else
-        amrex::Abort(Utils::TextMsg::Err(
-            "To use SENSEI in situ, compile with USE_SENSEI=TRUE"));
+        WARPX_ABORT_WITH_MESSAGE(
+            "To use SENSEI in situ, compile with USE_SENSEI=TRUE");
 #endif
     } else if (m_format == "openpmd"){
 #ifdef WARPX_USE_OPENPMD
         m_flush_format = std::make_unique<FlushFormatOpenPMD>(m_diag_name);
 #else
-        amrex::Abort(Utils::TextMsg::Err(
-            "To use openpmd output format, need to compile with USE_OPENPMD=TRUE"));
+        WARPX_ABORT_WITH_MESSAGE(
+            "To use openpmd output format, need to compile with USE_OPENPMD=TRUE");
 #endif
     } else {
-        amrex::Abort(Utils::TextMsg::Err(
-            "unknown output format"));
+        WARPX_ABORT_WITH_MESSAGE(
+            "unknown output format");
     }
 
     // allocate vector of buffers then allocate vector of levels for each buffer

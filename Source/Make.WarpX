@@ -208,7 +208,7 @@ endif
 libraries += -lgsl -lgslcblas
 
 ifeq ($(USE_RZ),TRUE)
-  USERSuffix := $(USERSuffix).RZ
+  USERSuffix := $(USERSuffix).rz
 endif
 
 ifeq ($(USE_HDF5),TRUE)

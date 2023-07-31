@@ -18,6 +18,7 @@
 #include "EmbeddedBoundary/WarpXFaceInfoBox_fwd.H"
 #include "FieldSolver/FiniteDifferenceSolver/FiniteDifferenceSolver_fwd.H"
 #include "FieldSolver/FiniteDifferenceSolver/MacroscopicProperties/MacroscopicProperties_fwd.H"
+#include "FieldSolver/FiniteDifferenceSolver/HybridPICModel/HybridPICModel_fwd.H"
 #include "Filter/NCIGodfreyFilter_fwd.H"
 #include "Particles/ParticleBoundaryBuffer_fwd.H"
 #include "Particles/MultiParticleContainer_fwd.H"
@@ -98,6 +99,7 @@ public:
 
     MultiParticleContainer& GetPartContainer () { return *mypc; }
     MacroscopicProperties& GetMacroscopicProperties () { return *m_macroscopic_properties; }
+    HybridPICModel& GetHybridPICModel () { return *m_hybrid_pic_model; }
     MultiDiagnostics& GetMultiDiags () {return *multi_diags;}
 
     ParticleBoundaryBuffer& GetParticleBoundaryBuffer () { return *m_particle_boundary_buffer; }
@@ -121,6 +123,11 @@ public:
     static std::string B_ext_grid_s;
     //! Initialization type for external electric field on the grid
     static std::string E_ext_grid_s;
+
+    //! Whether to apply the effect of an externally-defined electric field
+    static bool add_external_E_field;
+    //! Whether to apply the effect of an externally-defined magnetic field
+    static bool add_external_B_field;
 
     //! String storing parser function to initialize x-component of the magnetic field on the grid
     static std::string str_Bx_ext_grid_function;
@@ -219,6 +226,18 @@ public:
 
     //! perform field communications in single precision
     static bool do_single_precision_comms;
+
+    //! used shared memory algorithm for charge deposition
+    static bool do_shared_mem_charge_deposition;
+
+    //! use shared memory algorithm for current deposition
+    static bool do_shared_mem_current_deposition;
+
+    //! number of threads to use per block in shared deposition
+    static int shared_mem_current_tpb;
+
+    //! tileSize to use for shared current deposition operations
+    static amrex::IntVect shared_tilesize;
 
     //! Whether to fill guard cells when computing inverse FFTs of fields
     static amrex::IntVect m_fill_guards_fields;
@@ -355,6 +374,7 @@ public:
      * \param[in] dm The DistributionMapping describing the MultiFab
      * \param[in] ncomp The number of components in the MultiFab
      * \param[in] ngrow The number of guard cells in the MultiFab
+     * \param[in] level The refinement level
      * \param[in] name The name of the MultiFab to use in the map
      * \param[in] initial_value The optional initial value
      */
@@ -364,6 +384,7 @@ public:
         const amrex::DistributionMapping& dm,
         const int ncomp,
         const amrex::IntVect& ngrow,
+        const int level,
         const std::string& name,
         std::optional<const amrex::Real> initial_value = {});
 
@@ -378,6 +399,7 @@ public:
      * \param[in] dm The DistributionMapping describing the iMultiFab
      * \param[in] ncomp The number of components in the iMultiFab
      * \param[in] ngrow The number of guard cells in the iMultiFab
+     * \param[in] level The refinement level
      * \param[in] name The name of the iMultiFab to use in the map
      * \param[in] initial_value The optional initial value
      */
@@ -387,6 +409,7 @@ public:
         const amrex::DistributionMapping& dm,
         const int ncomp,
         const amrex::IntVect& ngrow,
+        const int level,
         const std::string& name,
         std::optional<const int> initial_value = {});
 
@@ -397,6 +420,7 @@ public:
      * \param[in] mf_to_alias The MultiFab to alias
      * \param[in] scomp The starting component to be aliased
      * \param[in] ncomp The number of components to alias
+     * \param[in] level The refinement level
      * \param[in] name The name of the MultiFab to use in the map
      * \param[in] initial_value optional initial value for MultiFab
      */
@@ -405,6 +429,7 @@ public:
         const amrex::MultiFab& mf_to_alias,
         const int scomp,
         const int ncomp,
+        const int level,
         const std::string& name,
         std::optional<const amrex::Real> initial_value);
 
@@ -508,27 +533,9 @@ public:
 
     static amrex::LayoutData<amrex::Real>* getCosts (int lev);
 
-    void setLoadBalanceEfficiency (const int lev, const amrex::Real efficiency)
-    {
-        if (m_instance)
-        {
-            m_instance->load_balance_efficiency[lev] = efficiency;
-        } else
-        {
-            return;
-        }
-    }
+    void setLoadBalanceEfficiency (const int lev, const amrex::Real efficiency);
 
-    amrex::Real getLoadBalanceEfficiency (const int lev)
-    {
-        if (m_instance)
-        {
-            return m_instance->load_balance_efficiency[lev];
-        } else
-        {
-            return -1;
-        }
-    }
+    amrex::Real getLoadBalanceEfficiency (const int lev);
 
     static amrex::IntVect filter_npass_each_dir;
     BilinearFilter bilinear_filter;
@@ -602,6 +609,22 @@ public:
     void MacroscopicEvolveE (         amrex::Real dt);
     void MacroscopicEvolveE (int lev, amrex::Real dt);
     void MacroscopicEvolveE (int lev, PatchType patch_type, amrex::Real dt);
+
+    /**
+     * \brief Hybrid-PIC field evolve function.
+     * This function contains the logic involved in evolving the electric and
+     * magnetic fields in the hybrid PIC algorithm.
+     */
+    void HybridPICEvolveFields ();
+
+    /**
+     * \brief Hybrid-PIC initial deposition function.
+     * The hybrid-PIC algorithm uses the charge and current density from both
+     * the current and previous step when updating the fields. This function
+     * deposits the initial ion charge and current (before the first particle
+     * push), to be used in the ``HybridPICEvolveFields()`` function.
+     */
+    void HybridPICDepositInitialRhoAndJ ();
 
     /** apply QED correction on electric field
      *
@@ -695,6 +718,16 @@ public:
     void ApplyEfieldBoundary (const int lev, PatchType patch_type);
     void ApplyBfieldBoundary (const int lev, PatchType patch_type, DtType dt_type);
 
+    /**
+     * \brief When the Ohm's law solver is used, the electron pressure values
+     * on PEC boundaries are set to enforce a zero derivative Neumann condition,
+     * otherwise the E_perp values have large spikes (that grows as 1/dx). This
+     * has to be done since the E-field is algebraically calculated instead of
+     * evolved which means the 1/dx growth is not avoided by multiplication
+     * with dt as happens in the B-field evolve.
+     */
+    void ApplyElectronPressureBoundary (const int lev, PatchType patch_type);
+
     void DampPML ();
     void DampPML (const int lev);
     void DampPML (const int lev, PatchType patch_type);
@@ -782,7 +815,8 @@ public:
 
     /**
      * \brief Synchronize J and rho:
-     * filter (if used), exchange guard cells, interpolate across MR levels.
+     * filter (if used), exchange guard cells, interpolate across MR levels
+     * and apply boundary conditions.
      * Contains separate calls to WarpX::SyncCurrent and WarpX::SyncRho.
      */
     void SyncCurrentAndRho ();
@@ -797,16 +831,19 @@ public:
      *
      * \param[in,out] J_fp reference to fine-patch current \c MultiFab (all MR levels)
      * \param[in,out] J_cp reference to coarse-patch current \c MultiFab (all MR levels)
+     * \param[in,out] J_buffer reference to buffer current \c MultiFab (all MR levels)
      */
     void SyncCurrent (
         const amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>,3>>& J_fp,
-        const amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>,3>>& J_cp);
+        const amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>,3>>& J_cp,
+        const amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>,3>>& J_buffer);
 
     void SyncRho ();
 
     void SyncRho (
         const amrex::Vector<std::unique_ptr<amrex::MultiFab>>& charge_fp,
-        const amrex::Vector<std::unique_ptr<amrex::MultiFab>>& charge_cp);
+        const amrex::Vector<std::unique_ptr<amrex::MultiFab>>& charge_cp,
+        const amrex::Vector<std::unique_ptr<amrex::MultiFab>>& charge_buffer);
 
     amrex::Vector<int> getnsubsteps () const {return nsubsteps;}
     int getnsubsteps (int lev) const {return nsubsteps[lev];}
@@ -822,7 +859,6 @@ public:
     amrex::Real getdt (int lev) const {return dt[lev];}
     int getdo_moving_window() const {return do_moving_window;}
     amrex::Real getmoving_window_x() const {return moving_window_x;}
-    amrex::Real getcurrent_injection_position () const {return current_injection_position;}
     bool getis_synchronized() const {return is_synchronized;}
 
     int maxStep () const {return max_step;}
@@ -985,6 +1021,10 @@ public:
          const char field,
          const int lev, PatchType patch_type);
 
+    void ReadExternalFieldFromFile (
+         std::string read_fields_from_path, amrex::MultiFab* mf,
+         std::string F_name, std::string F_component);
+
     /**
      * \brief
      * This function initializes and calculates grid quantities used along with
@@ -1108,6 +1148,8 @@ private:
     void FillBoundaryB_avg (int lev, PatchType patch_type, amrex::IntVect ng);
     void FillBoundaryE_avg (int lev, PatchType patch_type, amrex::IntVect ng);
 
+    void AddExternalFields ();
+
     void OneStep_nosub (amrex::Real t);
     void OneStep_sub1 (amrex::Real t);
 
@@ -1123,6 +1165,7 @@ private:
     void AddCurrentFromFineLevelandSumBoundary (
         const amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>,3>>& J_fp,
         const amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>,3>>& J_cp,
+        const amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>,3>>& J_buffer,
         const int lev);
     void StoreCurrent (const int lev);
     void RestoreCurrent (const int lev);
@@ -1162,6 +1205,7 @@ private:
     void AddRhoFromFineLevelandSumBoundary (
         const amrex::Vector<std::unique_ptr<amrex::MultiFab>>& charge_fp,
         const amrex::Vector<std::unique_ptr<amrex::MultiFab>>& charge_cp,
+        const amrex::Vector<std::unique_ptr<amrex::MultiFab>>& charge_buffer,
         const int lev,
         const int icomp,
         const int ncomp);
@@ -1220,8 +1264,10 @@ private:
     void PerformanceHints ();
 
     void BuildBufferMasks ();
+public: // for cuda
     void BuildBufferMasksInBox ( const amrex::Box tbx, amrex::IArrayBox &buffer_mask,
                                  const amrex::IArrayBox &guard_mask, const int ng );
+private:
     const amrex::iMultiFab* getCurrentBufferMasks (int lev) const {
         return current_buffer_masks[lev].get();
     }
@@ -1320,6 +1366,10 @@ private:
     amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > vector_potential_grad_buf_e_stag;
     amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > vector_potential_grad_buf_b_stag;
 
+    // Same as Bfield_fp/Efield_fp for reading external field data
+    amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > Efield_fp_external;
+    amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > Bfield_fp_external;
+
     //! EB: Lengths of the mesh edges
     amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > m_edge_lengths;
     //! EB: Areas of the mesh faces
@@ -1410,7 +1460,6 @@ private:
     amrex::Real v_particle_pml;
 
     amrex::Real moving_window_x = std::numeric_limits<amrex::Real>::max();
-    amrex::Real current_injection_position = 0;
 
     // Plasma injection parameters
     int warpx_do_continuous_injection = 0;
@@ -1421,6 +1470,9 @@ private:
 
     // Macroscopic properties
     std::unique_ptr<MacroscopicProperties> m_macroscopic_properties;
+
+    // Hybrid PIC algorithm parameters
+    std::unique_ptr<HybridPICModel> m_hybrid_pic_model;
 
     // Load balancing
     /** Load balancing intervals that reads the "load_balance_intervals" string int the input file
@@ -1799,6 +1851,9 @@ public:
 #   endif
             get_spectral_solver_fp (int lev) {return *spectral_solver_fp[lev];}
 #endif
+
+public:
+    FiniteDifferenceSolver * get_pointer_fdtd_solver_fp (int lev) { return m_fdtd_solver_fp[lev].get(); }
 
 private:
     amrex::Vector<std::unique_ptr<FiniteDifferenceSolver>> m_fdtd_solver_fp;
