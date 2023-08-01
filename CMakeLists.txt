@@ -263,8 +263,8 @@ if(WarpX_IPO)
 endif()
 
 # link dependencies
-target_link_libraries(WarpX PUBLIC gsl)
-target_link_libraries(WarpX PUBLIC gslcblas)
+target_link_libraries(WarpX_${SD} PUBLIC gsl)
+target_link_libraries(WarpX_${SD} PUBLIC gslcblas)
 
 foreach(D IN LISTS WarpX_DIMS)
     warpx_set_suffix_dims(SD ${D})

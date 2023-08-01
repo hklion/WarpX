@@ -2105,9 +2105,6 @@ PhysicalParticleContainer::Evolve (int lev,
                 // Current Deposition
                 if (skip_deposition == false)
                 {
-                    // Deposit at t_{n+1/2}
-                    const amrex::Real relative_time = -0.5_rt * dt;
-
                     const int* const AMREX_RESTRICT ion_lev = (do_field_ionization)?
                         pti.GetiAttribs(particle_icomps["ionizationLevel"]).dataPtr():nullptr;
 
