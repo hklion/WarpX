@@ -49,9 +49,7 @@ struct RandomFilter
     {
         amrex::ignore_unused(p);
 
-        if ( !m_is_active ) return 1;
-        else if ( amrex::Random(engine) < m_fraction ) return 1;
-        else return 0;
+        return ( (!m_is_active) || (amrex::Random(engine) < m_fraction) );
     }
 private:
     const bool m_is_active; //! select all particles if false
@@ -78,9 +76,7 @@ struct UniformFilter
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     bool operator () (const SuperParticleType& p, const amrex::RandomEngine&) const noexcept
     {
-        if ( !m_is_active ) return 1;
-        else if ( p.id()%m_stride == 0 ) return 1;
-        else return 0;
+        return ( (!m_is_active) || ( p.id()%m_stride == 0 ) );
     }
 private:
     const bool m_is_active; //! select all particles if false
@@ -115,21 +111,27 @@ struct ParserFilter
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     bool operator () (const SuperParticleType& p, const amrex::RandomEngine&) const noexcept
     {
-        if ( !m_is_active ) return 1;
-        amrex::ParticleReal x, y, z;
-        get_particle_position(p, x, y, z);
-        amrex::Real ux = p.rdata(PIdx::ux)/PhysConst::c;
-        amrex::Real uy = p.rdata(PIdx::uy)/PhysConst::c;
-        amrex::Real uz = p.rdata(PIdx::uz)/PhysConst::c;
-        if (m_units == InputUnits::SI)
-        {
-            ux /= m_mass;
-            uy /= m_mass;
-            uz /= m_mass;
+        if (!m_is_active){
+            return true;
         }
-        // ux, uy, uz are now in beta*gamma
-        if ( m_function_partparser(m_t,x,y,z,ux,uy,uz,0.0,0.0) ) return 1;
-        else return 0;
+        else{
+            amrex::ParticleReal x, y, z;
+            get_particle_position(p, x, y, z);
+            amrex::Real ux = p.rdata(PIdx::ux)/PhysConst::c;
+            amrex::Real uy = p.rdata(PIdx::uy)/PhysConst::c;
+            amrex::Real uz = p.rdata(PIdx::uz)/PhysConst::c;
+            if (m_units == InputUnits::SI)
+            {
+                ux /= m_mass;
+                uy /= m_mass;
+                uz /= m_mass;
+            }
+            // ux, uy, uz are now in beta*gamma
+
+            // This is actually a binary true/false (1/0) check,
+            // but the parser returns floating point types
+            return (m_function_partparser(m_t,x,y,z,ux,uy,uz,0.0,0.0) != 0.0_rt);
+        }
     }
     /**
      * \brief return 1 if the particle is selected by the parser
@@ -139,24 +141,27 @@ struct ParserFilter
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     bool operator () (const TileType& ptd, const int ip, const amrex::RandomEngine&) const noexcept
     {
-        if ( !m_is_active ) return 1;
-        auto p = ptd.getSuperParticle(ip);
-        amrex::ParticleReal x, y, z;
-        get_particle_position(p, x, y, z);
-        amrex::Real ux = p.rdata(PIdx::ux)/PhysConst::c;
-        amrex::Real uy = p.rdata(PIdx::uy)/PhysConst::c;
-        amrex::Real uz = p.rdata(PIdx::uz)/PhysConst::c;
-        amrex::Real upstream = ptd.m_runtime_rdata[m_ius][ip];
-        amrex::Real track = ptd.m_runtime_rdata[m_itr][ip];
-        if (m_units == InputUnits::SI)
-        {
-            ux /= m_mass;
-            uy /= m_mass;
-            uz /= m_mass;
+        if ( !m_is_active ) {
+            return true;
         }
-        // ux, uy, uz are now in beta*gamma
-        if ( m_function_partparser(m_t,x,y,z,ux,uy,uz,upstream,track) ) return 1;
-        else return 0;
+        else {
+            auto p = ptd.getSuperParticle(ip);
+            amrex::ParticleReal x, y, z;
+            get_particle_position(p, x, y, z);
+            amrex::Real ux = p.rdata(PIdx::ux)/PhysConst::c;
+            amrex::Real uy = p.rdata(PIdx::uy)/PhysConst::c;
+            amrex::Real uz = p.rdata(PIdx::uz)/PhysConst::c;
+            amrex::Real upstream = ptd.m_runtime_rdata[m_ius][ip];
+            amrex::Real track = ptd.m_runtime_rdata[m_itr][ip];
+            if (m_units == InputUnits::SI)
+            {
+                ux /= m_mass;
+                uy /= m_mass;
+                uz /= m_mass;
+            }
+            // ux, uy, uz are now in beta*gamma
+            return ( m_function_partparser(m_t,x,y,z,ux,uy,uz,upstream,track) != 0.0_rt );
+        }
     }
 private:
     /** Whether this diagnostics is activated. Select all particles if false */
