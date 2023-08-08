@@ -155,7 +155,7 @@ EnergyHI.bin_min = 1
 EnergyHI.bin_max = 2
 
 Bsq.type = FieldReduction
-Bsq.reduced_function(x,y,z,Ex,Ey,Ez,Bx,By,Bz) = Bx*Bx + By*By + Bz*Bz
+Bsq.reduced_function(x,y,z,Ex,Ey,Ez,Bx,By,Bz,jx,jy,jz) = Bx*Bx + By*By + Bz*Bz
 Bsq.reduction_type = Integral
 Bsq.intervals = 20
 

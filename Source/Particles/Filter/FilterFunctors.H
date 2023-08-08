@@ -10,7 +10,6 @@
 #include "Particles/Pusher/GetAndSetPosition.H"
 #include "Particles/WarpXParticleContainer.H"
 #include "Utils/WarpXConst.H"
-#include "WarpX.H"
 
 #include <AMReX_Gpu.H>
 #include <AMReX_Parser.H>
@@ -92,16 +91,19 @@ struct ParserFilter
      * \param a_is_active whether the test is active
      * \param a_filter_parser parser taking t, x, y, z, ux, uy, uz, upstream, track and returning a boolean for selected particle
      * \param a_mass mass of the particle species
+     * \param time simulation time on the coarsest level
      */
     ParserFilter(bool a_is_active, amrex::ParserExecutor<9> const& a_filter_parser,
-                 amrex::Real a_mass, std::map<std::string, int>& a_rt_param_map)
-        : m_is_active(a_is_active), m_function_partparser(a_filter_parser), m_mass(a_mass)
-    {
-        m_ius = a_rt_param_map["upstream"] - PIdx::nattribs;
-        m_itr = a_rt_param_map["track"] - PIdx::nattribs;
-        m_t = WarpX::GetInstance().gett_new(0);
-        m_units = InputUnits::WarpX;
-    }
+        const amrex::Real a_mass, const amrex::Real time,
+        std::map<std::string, int>& a_rt_param_map):
+            m_is_active{a_is_active},
+            m_function_partparser{a_filter_parser},
+            m_mass{a_mass},
+            m_t{time},
+            m_units{InputUnits::WarpX}{
+                m_ius = a_rt_param_map["upstream"] - PIdx::nattribs;
+                m_itr = a_rt_param_map["track"] - PIdx::nattribs;
+            }
 
     /**
      * \brief return 1 if the particle is selected by the parser
@@ -170,12 +172,12 @@ private:
     int m_ius;
     int m_itr;
 public:
-    /** Parser function with 9 input variables, t,x,y,z,ux,uy,uz,upstream,track */
+    /** Parser function with 7 input variables, t,x,y,z,ux,uy,uz */
     amrex::ParserExecutor<9> const m_function_partparser;
-    /** Store physical time. */
-    amrex::ParticleReal m_t;
     /** Mass of particle species */
     amrex::ParticleReal m_mass;
+    /** Store physical time on the coarsest level. */
+    amrex::ParticleReal m_t;
     /** keep track of momentum units particles will come in with **/
     InputUnits m_units;
 };
