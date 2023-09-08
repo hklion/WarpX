@@ -94,7 +94,7 @@ struct ParserFilter
      * \param time simulation time on the coarsest level
      */
     ParserFilter(bool a_is_active, amrex::ParserExecutor<9> const& a_filter_parser,
-        const amrex::Real a_mass, const amrex::Real time,
+        const amrex::ParticleReal a_mass, const amrex::Real time,
         std::map<std::string, int>& a_rt_param_map):
             m_is_active{a_is_active},
             m_function_partparser{a_filter_parser},
@@ -113,6 +113,8 @@ struct ParserFilter
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     bool operator () (const SuperParticleType& p, const amrex::RandomEngine&) const noexcept
     {
+        using namespace amrex::literals;
+
         if (!m_is_active){
             return true;
         }
@@ -177,7 +179,7 @@ public:
     /** Mass of particle species */
     amrex::ParticleReal m_mass;
     /** Store physical time on the coarsest level. */
-    amrex::ParticleReal m_t;
+    amrex::Real m_t;
     /** keep track of momentum units particles will come in with **/
     InputUnits m_units;
 };
