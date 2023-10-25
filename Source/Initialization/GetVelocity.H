@@ -45,23 +45,44 @@ struct GetVelocity
      * \param[in] x x-coordinate of given location
      * \param[in] y y-coordinate of given location
      * \param[in] z z-cooridnate of given location
+     * \param[in] comp component of velocity to return; 0 for x, 1 for y, 2 for z
      *
      *\return value of velocity at (x,y,z).
      *        m_velocity if m_type is VelConstantValue
      *        m_velocity_parser(x,y,z) if m_type is VelParserFunction
      */
     AMREX_GPU_HOST_DEVICE
-    amrex::Real operator() (amrex::Real const x, amrex::Real const y, amrex::Real const z) const noexcept
+    amrex::Real operator() (amrex::Real const x, amrex::Real const y, amrex::Real const z, int comp) const noexcept
     {
         switch (m_type)
         {
             case (VelConstantValue):
             {
-                return m_sign_dir * m_velocity;
+                return (m_dir == comp) ? m_sign_dir * m_velocity : 0.0;
             }
             case (VelParserFunction):
             {
-                return m_sign_dir * m_velocity_parser(x,y,z);
+                return (m_dir == comp) ? m_sign_dir * m_velocity_parser(x,y,z) : 0.0;
+            }
+            case (VelComponentsParserFunction):
+            {
+                if (comp == 0)
+                {
+                    return m_velocity_x_parser(x,y,z);
+                }
+                else if (comp == 1)
+                {
+                    return m_velocity_y_parser(x,y,z);
+                }
+                else if (comp == 2)
+                {
+                    return m_velocity_z_parser(x,y,z);
+                }
+                else
+                {
+                    WARPX_ABORT_WITH_MESSAGE("Unknown velocity component " + str(comp) + ".");
+                    return 0.0;
+                }
             }
             default:
             {

@@ -17,4 +17,9 @@ GetVelocity::GetVelocity (VelocityProperties const& vel) noexcept {
     else if (m_type == VelParserFunction) {
         m_velocity_parser = vel.m_ptr_velocity_parser->compile<3>();
     }
+    else if (m_type == VelComponentsParserFunction) {
+        m_velocity_x_parser = vel.m_ptr_velocity_x_parser->compile<3>();
+        m_velocity_y_parser = vel.m_ptr_velocity_y_parser->compile<3>();
+        m_velocity_z_parser = vel.m_ptr_velocity_z_parser->compile<3>();
+    }
 }

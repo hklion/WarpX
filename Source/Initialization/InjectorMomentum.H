@@ -333,13 +333,15 @@ struct InjectorMomentumBoltzmann
     getBulkMomentum (amrex::Real const x, amrex::Real const y, amrex::Real const z) const noexcept
     {
         using namespace amrex::literals;
-        amrex::Real u[3];
-        for (auto& el : u) el = 0.0_rt;
-        const amrex::Real beta = velocity(x,y,z);
-        int const dir = velocity.direction();
-        const amrex::Real gamma = static_cast<amrex::Real>(1._rt/sqrt(1._rt-beta*beta));
-        u[dir] = gamma*beta;
-        return amrex::XDim3 {u[0],u[1],u[2]};
+        //amrex::Real u[3];
+        //for (auto& el : u) el = 0.0_rt;
+        const amrex::Real betax = velocity(x,y,z,0);
+        const amrex::Real betay = velocity(x,y,z,1);
+        const amrex::Real betaz = velocity(x,y,z,2);
+        const amrex::Real gamma = static_cast<amrex::Real>(1._rt/
+                sqrt(1._rt-betax*betax-betay*betay-betaz*betaz));
+        //u[dir] = gamma*beta;
+        return amrex::XDim3 {betax*gamma, betay*gamma, betaz*gamma};
     }
 
 private:

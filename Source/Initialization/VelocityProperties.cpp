@@ -62,6 +62,22 @@ VelocityProperties::VelocityProperties (const amrex::ParmParse& pp) {
                 utils::parser::makeParser(str_beta_function,{"x","y","z"}));
         m_type = VelParserFunction;
     }
+    else if (vel_dist_s == "parser_components") {
+        std::string str_beta_function_x, str_beta_function_y, str_beta_function_z;
+        utils::parser::Store_parserString(pp, "beta_function_x(x,y,z)", str_beta_function_x);
+        utils::parser::Store_parserString(pp, "beta_function_y(x,y,z)", str_beta_function_y);
+        utils::parser::Store_parserString(pp, "beta_function_z(x,y,z)", str_beta_function_z);
+        m_ptr_velocity_x_parser =
+            std::make_unique<amrex::Parser>(
+                utils::parser::makeParser(str_beta_function_x,{"x","y","z"}));
+        m_ptr_velocity_y_parser =
+            std::make_unique<amrex::Parser>(
+                utils::parser::makeParser(str_beta_function_y,{"x","y","z"}));
+        m_ptr_velocity_z_parser =
+            std::make_unique<amrex::Parser>(
+                utils::parser::makeParser(str_beta_function_z,{"x","y","z"}));
+        m_type = VelComponentsParserFunction;
+    }
     else {
         WARPX_ABORT_WITH_MESSAGE(
             "Velocity distribution type '" + vel_dist_s + "' not recognized.");
