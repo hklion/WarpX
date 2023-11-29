@@ -1,7 +1,7 @@
 # Preamble ####################################################################
 #
 cmake_minimum_required(VERSION 3.20.0)
-project(WarpX VERSION 23.09)
+project(WarpX VERSION 23.11)
 
 include(${WarpX_SOURCE_DIR}/cmake/WarpXFunctions.cmake)
 
@@ -127,7 +127,7 @@ option(WarpX_PYTHON_IPO
 )
 
 set(pyWarpX_VERSION_INFO "" CACHE STRING
-    "PEP-440 conformant version (set by distutils)")
+    "PEP-440 conformant version (set by setup.py)")
 
 # enforce consistency of dependent options
 if(WarpX_APP OR WarpX_PYTHON)
@@ -141,9 +141,13 @@ option(ABLASTR_POSITION_INDEPENDENT_CODE
        "Build ABLASTR with position independent code" ON)
 mark_as_advanced(ABLASTR_POSITION_INDEPENDENT_CODE)
 
+option(ABLASTR_FFT "compile AnyFFT wrappers" ${WarpX_PSATD})
+if(WarpX_PSATD)
+    set(ABLASTR_FFT ON CACHE STRING "compile AnyFFT wrappers" FORCE)
+endif()
+
 # this defined the variable BUILD_TESTING which is ON by default
 #include(CTest)
-
 
 # Dependencies ################################################################
 #
@@ -372,6 +376,7 @@ if(WarpX_PYTHON)
 endif()
 
 add_subdirectory(Source/ablastr)
+
 if(WarpX_LIB)
     add_subdirectory(Source/AcceleratorLattice)
     add_subdirectory(Source/BoundaryConditions)
@@ -380,6 +385,7 @@ if(WarpX_LIB)
     add_subdirectory(Source/Evolve)
     add_subdirectory(Source/FieldSolver)
     add_subdirectory(Source/Filter)
+    add_subdirectory(Source/Fluids)
     add_subdirectory(Source/Initialization)
     add_subdirectory(Source/Laser)
     add_subdirectory(Source/Parallelization)
@@ -405,7 +411,7 @@ foreach(D IN LISTS WarpX_DIMS)
         target_link_libraries(ablastr_${SD} PUBLIC WarpX::thirdparty::amrex_${D}d)
     endif()
 
-    if(WarpX_PSATD)
+    if(ABLASTR_FFT)
         target_link_libraries(ablastr_${SD} PUBLIC WarpX::thirdparty::FFT)
         if(D STREQUAL "RZ")
             target_link_libraries(ablastr_${SD} PUBLIC blaspp)
@@ -501,6 +507,10 @@ foreach(D IN LISTS WarpX_DIMS)
 
     if(WarpX_PSATD)
         target_compile_definitions(ablastr_${SD} PUBLIC WARPX_USE_PSATD)
+    endif()
+    if(ABLASTR_FFT)
+        # We need to enable FFT support in ABLASTR for PSATD solver
+        target_compile_definitions(ablastr_${SD} PUBLIC ABLASTR_USE_FFT)
     endif()
 
     if(WarpX_PYTHON AND pyWarpX_VERSION_INFO)
@@ -647,7 +657,7 @@ if(WarpX_PYTHON)
         ${CMAKE_COMMAND} -E rm -f -r warpx-whl
         COMMAND
             ${CMAKE_COMMAND} -E env PYWARPX_LIB_DIR=$<TARGET_FILE_DIR:pyWarpX_${WarpX_DIMS_LAST}>
-                python3 -m pip wheel -v --no-build-isolation --no-deps --wheel-dir=warpx-whl ${WarpX_SOURCE_DIR}
+                ${Python_EXECUTABLE} -m pip wheel -v --no-build-isolation --no-deps --wheel-dir=warpx-whl ${WarpX_SOURCE_DIR}
         WORKING_DIRECTORY
             ${WarpX_BINARY_DIR}
         DEPENDS
@@ -661,7 +671,7 @@ if(WarpX_PYTHON)
         set(pyWarpX_REQUIREMENT_FILE "requirements.txt")
     endif()
     add_custom_target(${WarpX_CUSTOM_TARGET_PREFIX}pip_install_requirements
-        python3 -m pip install ${PYINSTALLOPTIONS} -r "${WarpX_SOURCE_DIR}/${pyWarpX_REQUIREMENT_FILE}"
+        ${Python_EXECUTABLE} -m pip install ${PYINSTALLOPTIONS} -r "${WarpX_SOURCE_DIR}/${pyWarpX_REQUIREMENT_FILE}"
         WORKING_DIRECTORY
             ${WarpX_BINARY_DIR}
     )
@@ -678,7 +688,7 @@ if(WarpX_PYTHON)
     # because otherwise pip would also force reinstall all dependencies.
     add_custom_target(${WarpX_CUSTOM_TARGET_PREFIX}pip_install
         ${CMAKE_COMMAND} -E env WARPX_MPI=${WarpX_MPI}
-            python3 -m pip install --force-reinstall --no-index --no-deps ${PYINSTALLOPTIONS} --find-links=warpx-whl pywarpx
+            ${Python_EXECUTABLE} -m pip install --force-reinstall --no-index --no-deps ${PYINSTALLOPTIONS} --find-links=warpx-whl pywarpx
         WORKING_DIRECTORY
             ${WarpX_BINARY_DIR}
         DEPENDS
@@ -686,6 +696,17 @@ if(WarpX_PYTHON)
             ${WarpX_CUSTOM_TARGET_PREFIX}pip_wheel
             ${WarpX_CUSTOM_TARGET_PREFIX}pip_install_requirements
             ${_EXTRA_INSTALL_DEPENDS}
+    )
+
+    # this is for package managers only
+    add_custom_target(${WarpX_CUSTOM_TARGET_PREFIX}pip_install_nodeps
+        ${CMAKE_COMMAND} -E env WARPX_MPI=${WarpX_MPI}
+            ${Python_EXECUTABLE} -m pip install --force-reinstall --no-index --no-deps ${PYINSTALLOPTIONS} --find-links=warpx-whl pywarpx
+        WORKING_DIRECTORY
+            ${WarpX_BINARY_DIR}
+        DEPENDS
+            pyWarpX_${WarpX_DIMS_LAST}
+            ${WarpX_CUSTOM_TARGET_PREFIX}pip_wheel
     )
 endif()
 

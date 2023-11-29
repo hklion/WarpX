@@ -4,12 +4,12 @@ foreach(D IN LISTS WarpX_DIMS)
       PRIVATE
         Interpolate.cpp
         ParticleUtils.cpp
+        SpeciesUtils.cpp
         RelativeCellPosition.cpp
         WarpXAlgorithmSelection.cpp
         WarpXMovingWindow.cpp
         WarpXTagging.cpp
         WarpXUtil.cpp
-        WarpXrocfftUtil.cpp
         WarpXVersion.cpp
     )
 endforeach()

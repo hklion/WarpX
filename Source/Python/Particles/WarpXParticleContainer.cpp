@@ -102,6 +102,10 @@ void init_WarpXParticleContainer (py::module& m)
             &WarpXParticleContainer::TotalNumberOfParticles,
             py::arg("valid_particles_only"), py::arg("local")
         )
+        .def("sum_particle_charge",
+            &WarpXParticleContainer::sumParticleCharge,
+            py::arg("local")
+        )
         .def("deposit_charge",
             [](WarpXParticleContainer& pc,
             amrex::MultiFab* rho, const int lev)
@@ -114,6 +118,13 @@ void init_WarpXParticleContainer (py::module& m)
                 }
             },
             py::arg("rho"), py::arg("lev")
+        )
+        .def("get_charge_density",
+            [](WarpXParticleContainer& pc, int lev, bool local)
+            {
+                return pc.GetChargeDensity(lev, local);
+            },
+            py::arg("lev"), py::arg("local")
         )
     ;
 }
