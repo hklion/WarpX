@@ -42,17 +42,26 @@ class PlasmaInjector
 
 public:
 
+    /** Default constructor*/
     PlasmaInjector () = default;
 
     PlasmaInjector (int ispecies, const std::string& name, const amrex::Geometry& geom);
 
+    // Default move and copy operations
+    PlasmaInjector(const PlasmaInjector&) = delete;
+    PlasmaInjector& operator=(const PlasmaInjector&) = delete;
+    PlasmaInjector(PlasmaInjector&&) = default;
+    PlasmaInjector& operator=(PlasmaInjector&&) = default;
+
     ~PlasmaInjector ();
 
     // bool: whether the point (x, y, z) is inside the plasma region
-    bool insideBounds (amrex::Real x, amrex::Real y, amrex::Real z) const noexcept;
+    [[nodiscard]] bool insideBounds (
+        amrex::Real x, amrex::Real y, amrex::Real z) const noexcept;
 
     // bool: whether the region defined by lo and hi overlaps with the plasma region
-    bool overlapsWith (const amrex::XDim3& lo, const amrex::XDim3& hi) const noexcept;
+    [[nodiscard]] bool overlapsWith (
+        const amrex::XDim3& lo, const amrex::XDim3& hi) const noexcept;
 
     int num_particles_per_cell;
     amrex::Real num_particles_per_cell_real;
@@ -60,18 +69,19 @@ public:
     amrex::Vector<int> num_particles_per_cell_each_dim;
 
     // gamma * beta
-    amrex::XDim3 getMomentum (amrex::Real x, amrex::Real y, amrex::Real z) const noexcept;
+    [[nodiscard]] amrex::XDim3 getMomentum (
+        amrex::Real x, amrex::Real y, amrex::Real z) const noexcept;
 
-    amrex::Real getCharge () {return charge;}
-    amrex::Real getMass () {return mass;}
-    PhysicalSpecies getPhysicalSpecies() const {return physical_species;}
+    [[nodiscard]] amrex::Real getCharge () {return charge;}
+    [[nodiscard]] amrex::Real getMass () {return mass;}
+    [[nodiscard]] PhysicalSpecies getPhysicalSpecies() const {return physical_species;}
 
     // bool: whether the initial injection of particles should be done
     // This routine is called during initialization of the plasma.
-    bool doInjection () const noexcept { return h_inj_pos != nullptr;}
+    [[nodiscard]] bool doInjection () const noexcept { return h_inj_pos != nullptr;}
 
     // bool: whether the flux injection of particles should be done.
-    bool doFluxInjection () const noexcept { return h_flux_pos != nullptr;}
+    [[nodiscard]] bool doFluxInjection () const noexcept { return h_flux_pos != nullptr;}
 
     bool add_single_particle = false;
     amrex::Vector<amrex::ParticleReal> single_particle_pos;
@@ -120,11 +130,7 @@ public:
 
     bool radially_weighted = true;
 
-    std::string str_density_function;
     std::string str_flux_function;
-    std::string str_momentum_function_ux;
-    std::string str_momentum_function_uy;
-    std::string str_momentum_function_uz;
 
     amrex::Real xmin, xmax;
     amrex::Real ymin, ymax;
@@ -146,7 +152,6 @@ protected:
 
     PhysicalSpecies physical_species = PhysicalSpecies::unspecified;
 
-    amrex::Real density;
     amrex::Real flux;
 
     int species_id;
@@ -171,6 +176,9 @@ protected:
     std::unique_ptr<amrex::Parser> ux_parser;
     std::unique_ptr<amrex::Parser> uy_parser;
     std::unique_ptr<amrex::Parser> uz_parser;
+    std::unique_ptr<amrex::Parser> ux_th_parser;
+    std::unique_ptr<amrex::Parser> uy_th_parser;
+    std::unique_ptr<amrex::Parser> uz_th_parser;
 
     // Keep a pointer to TemperatureProperties to ensure the lifetime of the
     // contained Parser
@@ -185,9 +193,7 @@ protected:
     void setupNuniformPerCell (const amrex::ParmParse& pp_species_name);
     void setupExternalFile (const amrex::ParmParse& pp_species_name);
 
-    void parseDensity (const amrex::ParmParse& pp_species_name);
     void parseFlux (const amrex::ParmParse& pp_species_name);
-    void parseMomentum (const amrex::ParmParse& pp_species_name, const std::string& style);
 };
 
 #endif

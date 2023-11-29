@@ -100,10 +100,11 @@ struct ParserFilter
             m_function_partparser{a_filter_parser},
             m_mass{a_mass},
             m_t{time},
-            m_units{InputUnits::WarpX}{
+            m_units{InputUnits::WarpX}
+    {
                 m_ius = a_rt_param_map["upstream"] - PIdx::nattribs;
                 m_itr = a_rt_param_map["track"] - PIdx::nattribs;
-            }
+    }
 
     /**
      * \brief return 1 if the particle is selected by the parser
@@ -183,7 +184,7 @@ public:
     /** Store physical time on the coarsest level. */
     amrex::Real m_t;
     /** keep track of momentum units particles will come in with **/
-    InputUnits m_units;
+    InputUnits m_units{InputUnits::WarpX};
 };
 
 
@@ -204,7 +205,7 @@ struct GeometryFilter
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     bool operator () (const SuperParticleType& p, const amrex::RandomEngine&) const noexcept
     {
-        if ( !m_is_active ) return 1;
+        if ( !m_is_active ) return true;
         return ! (AMREX_D_TERM( (p.pos(0) < m_domain.lo(0)) || (p.pos(0) > m_domain.hi(0) ),
                             ||  (p.pos(1) < m_domain.lo(1)) || (p.pos(1) > m_domain.hi(1) ),
                             ||  (p.pos(2) < m_domain.lo(2)) || (p.pos(2) > m_domain.hi(2) )));

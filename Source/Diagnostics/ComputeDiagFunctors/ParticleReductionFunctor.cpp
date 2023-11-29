@@ -83,7 +83,7 @@ ParticleReductionFunctor::operator() (amrex::MultiFab& mf_dst, const int dcomp, 
                 const amrex::ParticleReal x = p.pos(0);
                 const amrex::Real lx = (x - plo[0]) * dxi[0];
                 ii = static_cast<int>(amrex::Math::floor(lx));
-#if defined(WARPX_DIM_XZ) || defined(WARPX_DIM_3D)
+#if defined(WARPX_DIM_XZ) || defined(WARPX_DIM_3D) || defined(WARPX_DIM_RZ)
                 const amrex::ParticleReal y = p.pos(1);
                 const amrex::Real ly = (y - plo[1]) * dxi[1];
                 jj = static_cast<int>(amrex::Math::floor(ly));
@@ -144,7 +144,7 @@ ParticleReductionFunctor::operator() (amrex::MultiFab& mf_dst, const int dcomp, 
                     const amrex::ParticleReal uz = p.rdata(PIdx::uz) / PhysConst::c;
                     const amrex::ParticleReal upstream = ptd.m_runtime_rdata[iupstream][pind];
                     amrex::Real filter;
-                    if ((do_filter) && (!filter_fn(xw, yw, zw, ux, uy, uz, upstream))) filter = 0._rt;
+                    if ((do_filter) && (filter_fn(xw, yw, zw, ux, uy, uz, upstream) == 0._rt)) filter = 0._rt;
                     else filter = 1._rt;
                     amrex::Gpu::Atomic::AddNoRet(&out_array(ii, jj, kk, 0), (amrex::Real)(p.rdata(PIdx::w) * filter));
                 });
