@@ -882,7 +882,7 @@ WarpX::InitLevelData (int lev, Real /*time*/)
     }
     int IncludeBfieldPerturbation = 0;
     pp_warpx.query("IncludeBfieldPerturbation",IncludeBfieldPerturbation);
-    if (IncludeBfieldPerturbation == 1) {
+    if ( (IncludeBfieldPerturbation == 1) && (lev <= maxlevel_extEMfield_init) ) {
 #ifndef WARPX_DIM_RZ
         Reconnection_Perturbation::AddBfieldPerturbation (Bfield_fp[lev][0].get(),
                                Bfield_fp[lev][1].get(),
