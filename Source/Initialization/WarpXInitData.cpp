@@ -882,8 +882,16 @@ WarpX::InitLevelData (int lev, Real /*time*/)
     }
     int IncludeBfieldPerturbation = 0;
     pp_warpx.query("IncludeBfieldPerturbation",IncludeBfieldPerturbation);
-    if (IncludeBfieldPerturbation == 1) {
+    if ( (IncludeBfieldPerturbation == 1) && (lev <= maxlevel_extEMfield_init) ) {
 #ifndef WARPX_DIM_RZ
+        amrex::ParmParse pp_amrex("amrex");
+        int arena_is_managed = 0;
+        pp_amrex.query("the_arena_is_managed",arena_is_managed);
+#ifdef AMREX_USE_GPU
+        WARPX_ALWAYS_ASSERT_WITH_MESSAGE(arena_is_managed == 1,
+                                         "For reconnection simulations with perturbation, managed memory should be used with amrex.the_arena_is_managed=1\n");
+
+#endif
         Reconnection_Perturbation::AddBfieldPerturbation (Bfield_fp[lev][0].get(),
                                Bfield_fp[lev][1].get(),
                                Bfield_fp[lev][2].get(),
