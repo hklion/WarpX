@@ -99,8 +99,7 @@ struct ParserFilter
             m_is_active{a_is_active},
             m_function_partparser{a_filter_parser},
             m_mass{a_mass},
-            m_t{time},
-            m_units{InputUnits::WarpX}
+            m_t{time}
     {
                 m_ius = a_rt_param_map["upstream"] - PIdx::nattribs;
                 m_itr = a_rt_param_map["track"] - PIdx::nattribs;
