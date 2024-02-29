@@ -1641,6 +1641,8 @@ private:
      * uniform plasma on a domain of size 128 by 128 by 128, from which the approximate
      * time per iteration per particle is computed. */
     amrex::Real costs_heuristic_particles_wt = amrex::Real(0);
+    /** Whether to use MakeSimilarDM when load balancing lev > 1 */
+    int do_similar_dm_refpatch = 0;
 
     // Determines timesteps for override sync
     utils::parser::IntervalsParser override_sync_intervals;
