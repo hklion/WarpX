@@ -19,6 +19,8 @@
 #include "Utils/WarpXAlgorithmSelection.H"
 #include "Utils/WarpXProfilerWrapper.H"
 
+#include <ablastr/coarsen/sample.H>
+
 #include <AMReX.H>
 #include <AMReX_BLassert.H>
 #include <AMReX_Box.H>
@@ -69,6 +71,12 @@ WarpX::LoadBalance ()
     int loadBalancedAnyLevel = false;
 
     const int nLevels = finestLevel();
+    if (do_similar_dm_refpatch) {
+        for (int lev = nLevels; lev > 0; --lev) {
+            ablastr::coarsen::sample::Coarsen(*costs[lev-1], *costs[lev],0,0,1,0,WarpX::RefRatio(lev-1));
+        }
+    }
+
     for (int lev = 0; lev <= nLevels; ++lev)
     {
         int doLoadBalance = false;
@@ -83,16 +91,26 @@ WarpX::LoadBalance ()
         amrex::Real currentEfficiency = 0.0;
         amrex::Real proposedEfficiency = 0.0;
 
-        newdm = (load_balance_with_sfc)
-            ? DistributionMapping::makeSFC(*costs[lev],
-                                           currentEfficiency, proposedEfficiency,
-                                           false,
-                                           ParallelDescriptor::IOProcessorNumber())
-            : DistributionMapping::makeKnapSack(*costs[lev],
-                                                currentEfficiency, proposedEfficiency,
-                                                nmax,
-                                                false,
-                                                ParallelDescriptor::IOProcessorNumber());
+        if (lev == 0 || !do_similar_dm_refpatch) {
+            newdm = (load_balance_with_sfc)
+                ? DistributionMapping::makeSFC(*costs[lev],
+                                               currentEfficiency, proposedEfficiency,
+                                               false,
+                                               ParallelDescriptor::IOProcessorNumber())
+                : DistributionMapping::makeKnapSack(*costs[lev],
+                                                    currentEfficiency, proposedEfficiency,
+                                                    nmax,
+                                                    false,
+                                                    ParallelDescriptor::IOProcessorNumber());
+        } else {
+            amrex::BoxArray coarse_ba = boxArray(lev-1);
+            amrex::DistributionMapping coarse_dm = DistributionMap(lev-1);
+            amrex::BoxArray ba = boxArray(lev);
+            ba.coarsen(WarpX::RefRatio(lev-1));
+            newdm = amrex::MakeSimilarDM(ba, coarse_ba, coarse_dm, getngEB());
+        }
+        Print() << "new dm on lev " << lev << ": \n";
+        Print() << newdm << std::endl;
         // As specified in the above calls to makeSFC and makeKnapSack, the new
         // distribution mapping is NOT communicated to all ranks; the loadbalanced
         // dm is up-to-date only on root, and we can decide whether to broadcast
