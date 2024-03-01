@@ -1643,6 +1643,8 @@ private:
     amrex::Real costs_heuristic_particles_wt = amrex::Real(0);
     /** Whether to use MakeSimilarDM when load balancing lev > 1 */
     int do_similar_dm_refpatch = 0;
+    /** Whether to use SFC on vectorized BoxArrays from all levels */
+    int do_SFC_dm_vectorlevel = 0;
 
     // Determines timesteps for override sync
     utils::parser::IntervalsParser override_sync_intervals;
