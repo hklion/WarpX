@@ -1293,6 +1293,7 @@ WarpX::ReadParameters ()
             load_balance_intervals_string_vec);
         pp_algo.query("load_balance_with_sfc", load_balance_with_sfc);
         pp_algo.query("do_similar_dm_refpatch", do_similar_dm_refpatch);
+        pp_algo.query("do_SFC_dm_vectorlevel",do_SFC_dm_vectorlevel);
         // Knapsack factor only used with non-SFC strategy
         if (!load_balance_with_sfc) {
             pp_algo.query("load_balance_knapsack_factor", load_balance_knapsack_factor);
