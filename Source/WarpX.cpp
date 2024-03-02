@@ -126,6 +126,7 @@ int WarpX::macroscopic_solver_algo;
 bool WarpX::do_single_precision_comms = false;
 bool WarpX::do_subcycle_current = false;
 int WarpX::n_subcycle_current = 1;
+bool WarpX::do_abc_in_pml = false;
 
 bool WarpX::do_shared_mem_charge_deposition = false;
 bool WarpX::do_shared_mem_current_deposition = false;
@@ -909,6 +910,9 @@ WarpX::ReadParameters ()
         pp_warpx.query("do_pml_j_damping", do_pml_j_damping);
         pp_warpx.query("do_pml_in_domain", do_pml_in_domain);
         pp_warpx.query("do_similar_dm_pml", do_similar_dm_pml);
+        pp_warpx.query("do_cubic_sigma_pml",do_cubic_sigma_pml);
+        pp_warpx.query("pml_damping_strength",pml_damping_strength);
+        pp_warpx.query("do_abc_in_pml",do_abc_in_pml);
         // Read `v_particle_pml` in units of the speed of light
         v_particle_pml = 1._rt;
         utils::parser::queryWithParser(pp_warpx, "v_particle_pml", v_particle_pml);

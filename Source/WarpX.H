@@ -1587,8 +1587,11 @@ private:
     int do_pml_j_damping = 0;
     int do_pml_in_domain = 0;
     static int do_similar_dm_pml;
+    int do_cubic_sigma_pml = 0;
+    amrex::Real pml_damping_strength = 4.;
     bool do_pml_dive_cleaning; // default set in WarpX.cpp
     bool do_pml_divb_cleaning; // default set in WarpX.cpp
+    static bool do_abc_in_pml;
     amrex::Vector<amrex::IntVect> do_pml_Lo;
     amrex::Vector<amrex::IntVect> do_pml_Hi;
     amrex::Vector<std::unique_ptr<PML> > pml;

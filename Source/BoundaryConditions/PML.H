@@ -44,15 +44,18 @@ struct SigmaBox
 {
     SigmaBox (const amrex::Box& box, const amrex::BoxArray& grids,
               const amrex::Real* dx, const amrex::IntVect& ncell, const amrex::IntVect& delta,
-              const amrex::Box& regdomain, amrex::Real v_sigma);
+              const amrex::Box& regdomain, amrex::Real v_sigma,
+              const int do_cubic_sigma_pml, const amrex::Real pml_damping_strength);
 
     void define_single (const amrex::Box& regdomain, const amrex::IntVect& ncell,
                         const amrex::Array<amrex::Real,AMREX_SPACEDIM>& fac,
-                        amrex::Real v_sigma);
+                        amrex::Real v_sigma,
+                        const int do_cubic_sigma_pml);
     void define_multiple (const amrex::Box& box, const amrex::BoxArray& grids,
                           const amrex::IntVect& ncell,
                           const amrex::Array<amrex::Real,AMREX_SPACEDIM>& fac,
-                          amrex::Real v_sigma);
+                          amrex::Real v_sigma,
+                          const int do_cubic_sigma_pml);
 
     void ComputePMLFactorsB (const amrex::Real* dx, amrex::Real dt);
     void ComputePMLFactorsE (const amrex::Real* dx, amrex::Real dt);
@@ -79,8 +82,9 @@ class SigmaBoxFactory
 public:
     SigmaBoxFactory (const amrex::BoxArray& grid_ba, const amrex::Real* dx,
                      const amrex::IntVect& ncell, const amrex::IntVect& delta,
-                     const amrex::Box& regular_domain, const amrex::Real v_sigma_sb)
-        : m_grids(grid_ba), m_dx(dx), m_ncell(ncell), m_delta(delta), m_regdomain(regular_domain), m_v_sigma_sb(v_sigma_sb) {}
+                     const amrex::Box& regular_domain, const amrex::Real v_sigma_sb,
+                     const int do_cubic_sigma_pml, const amrex::Real pml_damping_strength)
+        : m_grids(grid_ba), m_dx(dx), m_ncell(ncell), m_delta(delta), m_regdomain(regular_domain), m_v_sigma_sb(v_sigma_sb), m_do_cubic_sigma_pml(do_cubic_sigma_pml), m_pml_damping_strength(pml_damping_strength) {}
     ~SigmaBoxFactory () override = default;
 
     SigmaBoxFactory (const SigmaBoxFactory&) = default;
@@ -93,7 +97,7 @@ public:
     [[nodiscard]] SigmaBox* create (const amrex::Box& box, int /*ncomps*/,
         const amrex::FabInfo& /*info*/, int /*box_index*/) const final
     {
-        return new SigmaBox(box, m_grids, m_dx, m_ncell, m_delta, m_regdomain, m_v_sigma_sb);
+        return new SigmaBox(box, m_grids, m_dx, m_ncell, m_delta, m_regdomain, m_v_sigma_sb, m_do_cubic_sigma_pml, m_pml_damping_strength);
     }
 
     void destroy (SigmaBox* fab) const final
@@ -114,6 +118,8 @@ private:
     amrex::IntVect m_delta;
     amrex::Box m_regdomain;
     amrex::Real m_v_sigma_sb;
+    int m_do_cubic_sigma_pml;
+    amrex::Real m_pml_damping_strength;
 };
 
 class MultiSigmaBox
@@ -123,7 +129,8 @@ public:
     MultiSigmaBox(const amrex::BoxArray& ba, const amrex::DistributionMapping& dm,
                   const amrex::BoxArray& grid_ba, const amrex::Real* dx,
                   const amrex::IntVect& ncell, const amrex::IntVect& delta,
-                  const amrex::Box& regular_domain, amrex::Real v_sigma_sb);
+                  const amrex::Box& regular_domain, amrex::Real v_sigma_sb,
+                  const int do_cubic_sigma_pml, const amrex::Real pml_damping_strength);
     void ComputePMLFactorsB (const amrex::Real* dx, amrex::Real dt);
     void ComputePMLFactorsE (const amrex::Real* dx, amrex::Real dt);
 private:
@@ -147,6 +154,7 @@ public:
          const amrex::IntVect& fill_guards_fields,
          const amrex::IntVect& fill_guards_current,
          int max_guard_EB, amrex::Real v_sigma_sb,
+         const int do_cubic_sigma_pml, const amrex::Real pml_damping_strength,
          amrex::IntVect do_pml_Lo = amrex::IntVect::TheUnitVector(),
          amrex::IntVect do_pml_Hi = amrex::IntVect::TheUnitVector());
 
