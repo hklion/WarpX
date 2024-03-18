@@ -210,6 +210,8 @@ IntVect WarpX::filter_npass_each_dir(1);
 
 int WarpX::n_field_gather_buffer = -1;
 int WarpX::n_current_deposition_buffer = -1;
+bool WarpX::do_fieldinterp_gather_buffer = false;
+amrex::Real WarpX::tanh_midpoint_gather_buffer = 0.5;
 
 short WarpX::grid_type;
 amrex::IntVect m_rho_nodal_flag;
@@ -402,6 +404,7 @@ WarpX::WarpX ()
     gather_buffer_masks.resize(nlevs_max);
     current_buf.resize(nlevs_max);
     charge_buf.resize(nlevs_max);
+    interp_weight_gbuffer.resize(nlevs_max);
 
     pml.resize(nlevs_max);
 #if (defined WARPX_DIM_RZ) && (defined WARPX_USE_PSATD)
@@ -768,13 +771,34 @@ WarpX::ReadParameters ()
         }
         // Parse the input file for domain boundary potentials
         const ParmParse pp_boundary("boundary");
-        pp_boundary.query("potential_lo_x", m_poisson_boundary_handler.potential_xlo_str);
-        pp_boundary.query("potential_hi_x", m_poisson_boundary_handler.potential_xhi_str);
-        pp_boundary.query("potential_lo_y", m_poisson_boundary_handler.potential_ylo_str);
-        pp_boundary.query("potential_hi_y", m_poisson_boundary_handler.potential_yhi_str);
-        pp_boundary.query("potential_lo_z", m_poisson_boundary_handler.potential_zlo_str);
-        pp_boundary.query("potential_hi_z", m_poisson_boundary_handler.potential_zhi_str);
-        pp_warpx.query("eb_potential(x,y,z,t)", m_poisson_boundary_handler.potential_eb_str);
+        bool potential_specified = false;
+        // When reading the potential at the boundary from the input file, set this flag to true if any of the potential is specified
+        potential_specified |= pp_boundary.query("potential_lo_x", m_poisson_boundary_handler.potential_xlo_str);
+        potential_specified |= pp_boundary.query("potential_hi_x", m_poisson_boundary_handler.potential_xhi_str);
+        potential_specified |= pp_boundary.query("potential_lo_y", m_poisson_boundary_handler.potential_ylo_str);
+        potential_specified |= pp_boundary.query("potential_hi_y", m_poisson_boundary_handler.potential_yhi_str);
+        potential_specified |= pp_boundary.query("potential_lo_z", m_poisson_boundary_handler.potential_zlo_str);
+        potential_specified |= pp_boundary.query("potential_hi_z", m_poisson_boundary_handler.potential_zhi_str);
+#if defined(AMREX_USE_EB)
+        potential_specified |= pp_warpx.query("eb_potential(x,y,z,t)", m_poisson_boundary_handler.potential_eb_str);
+#endif
+        m_boundary_potential_specified = potential_specified;
+        if (potential_specified & (WarpX::electromagnetic_solver_id == ElectromagneticSolverAlgo::HybridPIC)) {
+            ablastr::warn_manager::WMRecordWarning(
+                "Algorithms",
+                "The input script specifies the electric potential (phi) at the boundary, but \
+                also uses the hybrid PIC solver based on Ohm’s law. When using this solver, the \
+                electric potential does not have any impact on the simulation.",
+                ablastr::warn_manager::WarnPriority::low);
+        }
+        else if (potential_specified & (WarpX::electromagnetic_solver_id != ElectromagneticSolverAlgo::None)) {
+            ablastr::warn_manager::WMRecordWarning(
+                "Algorithms",
+                "The input script specifies the electric potential (phi) at the boundary so \
+                an initial Poisson solve will be performed.",
+                ablastr::warn_manager::WarnPriority::low);
+        }
+
         m_poisson_boundary_handler.buildParsers();
 #ifdef WARPX_DIM_RZ
         pp_boundary.query("verboncoeur_axis_correction", verboncoeur_axis_correction);
@@ -870,6 +894,10 @@ WarpX::ReadParameters ()
             pp_warpx, "n_field_gather_buffer", n_field_gather_buffer);
         utils::parser::queryWithParser(
             pp_warpx, "n_current_deposition_buffer", n_current_deposition_buffer);
+        utils::parser::queryWithParser(
+            pp_warpx, "do_fieldinterp_gather_buffer", do_fieldinterp_gather_buffer);
+        utils::parser::queryWithParser(
+            pp_warpx, "tanh_midpoint_gather_buffer", tanh_midpoint_gather_buffer);
 
         amrex::Real quantum_xi_tmp;
         const auto quantum_xi_is_specified =
@@ -2064,6 +2092,7 @@ WarpX::ClearLevel (int lev)
 
     current_buffer_masks[lev].reset();
     gather_buffer_masks[lev].reset();
+    interp_weight_gbuffer[lev].reset();
 
     F_fp  [lev].reset();
     G_fp  [lev].reset();
@@ -2685,20 +2714,23 @@ WarpX::AllocLevelMFs (int lev, const BoxArray& ba, const DistributionMapping& dm
                 AllocInitMultiFab(Efield_cax[lev][1], amrex::convert(cba,Ey_nodal_flag),dm,ncomps,ngEB,lev, "Efield_cax[y]");
                 AllocInitMultiFab(Efield_cax[lev][2], amrex::convert(cba,Ez_nodal_flag),dm,ncomps,ngEB,lev, "Efield_cax[z]");
             }
-
-            AllocInitMultiFab(gather_buffer_masks[lev], ba, dm, ncomps, amrex::IntVect(1), lev, "gather_buffer_masks");
+            amrex::Print() << " ba for allocating gahter buffer mask " << "\n";
             // Gather buffer masks have 1 ghost cell, because of the fact
             // that particles may move by more than one cell when using subcycling.
+            AllocInitMultiFab(gather_buffer_masks[lev], ba, dm, ncomps, amrex::IntVect(1), lev, "gather_buffer_masks");
+            AllocInitMultiFab(interp_weight_gbuffer[lev], amrex::convert(ba, IntVect::TheNodeVector()), dm, ncomps, ngEB, lev, "interp_weight_gbuffer", 0.0_rt);
         }
 
         if (n_current_deposition_buffer > 0) {
+            amrex::Print() << " current dep buffer : " << n_current_deposition_buffer << "\n";
             AllocInitMultiFab(current_buf[lev][0], amrex::convert(cba,jx_nodal_flag),dm,ncomps,ngJ,lev, "current_buf[x]");
             AllocInitMultiFab(current_buf[lev][1], amrex::convert(cba,jy_nodal_flag),dm,ncomps,ngJ,lev, "current_buf[y]");
             AllocInitMultiFab(current_buf[lev][2], amrex::convert(cba,jz_nodal_flag),dm,ncomps,ngJ,lev, "current_buf[z]");
             if (rho_cp[lev]) {
                 AllocInitMultiFab(charge_buf[lev], amrex::convert(cba,rho_nodal_flag),dm,2*ncomps,ngRho,lev, "charge_buf");
             }
-            AllocInitMultiFab(current_buffer_masks[lev], ba, dm, ncomps, amrex::IntVect(1), lev, "current_buffer_masks");
+            amrex::Print() << " allocate current buffer mask \n";
+            AllocInitMultiFab(current_buffer_masks[lev], ba, dm, ncomps, ngJ, lev, "current_buffer_masks");
             // Current buffer masks have 1 ghost cell, because of the fact
             // that particles may move by more than one cell when using subcycling.
         }
@@ -3060,6 +3092,8 @@ WarpX::getLoadBalanceEfficiency (const int lev)
 void
 WarpX::BuildBufferMasks ()
 {
+    bool do_interpolate = WarpX::do_fieldinterp_gather_buffer;
+    amrex::Real tanh_midpoint =  WarpX::tanh_midpoint_gather_buffer;
     for (int lev = 1; lev <= maxLevel(); ++lev)
     {
         for (int ipass = 0; ipass < 2; ++ipass)
@@ -3084,6 +3118,75 @@ WarpX::BuildBufferMasks ()
                 {
                     const Box tbx = mfi.growntilebox();
                     BuildBufferMasksInBox( tbx, (*bmasks)[mfi], tmp[mfi], ngbuffer );
+                }
+                if (ipass==0) continue;
+                amrex::MultiFab* weight_gbuffer = interp_weight_gbuffer[lev].get();
+                // Using tmp to also set weights in the interp_weight_gbuffer multifab
+                for (MFIter mfi(*weight_gbuffer, true); mfi.isValid(); ++mfi)
+                {
+                    const Box& tbx = mfi.tilebox(IntVect::TheNodeVector(),weight_gbuffer->nGrowVect());
+                    auto const& gmsk = tmp[mfi].const_array();
+                    auto const& bmsk = (*bmasks)[mfi].array();
+                    auto const& wtmsk = (*weight_gbuffer)[mfi].array();
+                    amrex::ParallelFor(tbx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                        wtmsk(i,j,k) = 0._rt;
+                        if (bmsk(i,j,k) == 0 && do_interpolate) {
+                            if(gmsk(i,j,k)==0) {
+                                wtmsk(i,j,k) = 0.;
+                                return;
+                            }
+                            //for (int ii = i-1; ii >= i-ngbuffer; --ii) {
+                            //    if (gmsk(ii,j,k)==0) {
+                            //        amrex::Real arg = (static_cast<amrex::Real>(i-ii)-ngbuffer*tanh_midpoint)
+                            //                          / ((1.-tanh_midpoint)*(ngbuffer/3.));
+                            //        wtmsk(i,j,k) = std::tanh(arg)*0.5 + 0.5;
+                            //        amrex::Print() << " i edge wt is " << wtmsk(i,j,k) << "\n";
+                            //        return;
+                            //    }
+                            //}
+                            //for (int ii = i+1; ii <= i+ngbuffer; ++ii) {
+                            //    if (gmsk(ii,j,k)==0) {
+                            //        amrex::Real arg = (static_cast<amrex::Real>(ii-i)-ngbuffer*tanh_midpoint)
+                            //                          / ((1.-tanh_midpoint)*(ngbuffer/3.));
+                            //        wtmsk(i,j,k) = std::tanh(arg)*0.5+0.5;
+                            //        amrex::Print() << " wt is " << wtmsk(i,j,k) << "\n";
+                            //        return;
+                            //    }
+                            //}
+                            for (int jj = j-1; jj >= j-ngbuffer; --jj) {
+                                if (gmsk(i,jj,k)==0) {
+                                    amrex::Real arg = (static_cast<amrex::Real>(j-jj)-ngbuffer*tanh_midpoint)
+                                                      / ((1.-tanh_midpoint)*(ngbuffer/3.));
+                                    wtmsk(i,j,k) = std::tanh(arg)*0.5 + 0.5;
+                                    return;
+                                }
+                            }
+                            for (int jj = j+1; jj <= j+ngbuffer; ++jj) {
+                                if (gmsk(i,jj,k)==0) {
+                                    amrex::Real arg = (static_cast<amrex::Real>(jj - j)-ngbuffer*tanh_midpoint)
+                                                      / ((1.-tanh_midpoint)*(ngbuffer/3.));
+                                    wtmsk(i,j,k) = std::tanh(arg)*0.5+0.5;
+                                    return;
+                                }
+                            }
+                            //for (int kk = k-1; kk >= k-ngbuffer; --kk) {
+                            //    if (gmsk(i,j,kk)==0) {
+                            //        amrex::Real arg = (static_cast<amrex::Real>(k-kk)-ngbuffer*tanh_midpoint)
+                            //                          / ((1.-tanh_midpoint)*(ngbuffer/3.));
+                            //        wtmsk(i,j,k) = std::tanh(arg)*0.5+0.5;
+                            //        return;
+                            //    }
+                            //}
+                            //for (int kk = k+1; kk <= k+ngbuffer; ++kk) {
+                            //    if (gmsk(i,j,kk)==0) {
+                            //        amrex::Real arg = (static_cast<amrex::Real>(kk-k)-ngbuffer*tanh_midpoint)
+                            //                          / ((1.-tanh_midpoint)*(ngbuffer/3.));
+                            //        wtmsk(i,j,k) = std::tanh(arg)*0.5+0.5;
+                            //        return;
+                            //    }
+                            //}
+                        }
+                    });
                 }
             }
         }
