@@ -355,6 +355,32 @@ public:
     //! #n_field_gather_buffer cells of the edge of the patch, will gather the fields
     //! from the lower refinement level instead of the refinement patch itself
     static int n_field_gather_buffer;
+
+    /**
+     * If true, particles located inside refinement patch but within
+     *  #n_field_gather_buffer cells of the patch edge will gather fields
+     * that are a weighted sum of the fields from lower refinement
+     * level and the refinement patch. By default, no interpolation will be done,
+     * and the fields will be gathered only from the lower refinement level.
+     * The option can be used to allow for a smooth transition from the fine
+     * and coarse solutions with a tanh profile, such that, the value
+     * of the gather fields is close to the solution on the refinement patch
+     * near the gather buffer edge, and close to the solution on the lower
+     * refinement level close to the edge of the patch.
+     * #tanh_midpoint_gather_buffer can be used to set the tanh profile
+     */
+    static bool do_fieldinterp_gather_buffer;
+
+    /**
+     * With mesh-refinement, finite number of gather buffer cells, and
+     * do_fieldinterp_gather_buffer, the particles on the fine patch
+     * gather a weighted sum of fields from fine patch and coarse patch.
+     * A tanh profile is used to set the smoothing kernel
+     * #tanh_midpoint_gather_buffer must be a fraction of the buffer width
+     * measured from coarsefine interface, where the tanh profile is 0.5
+     * The default value is 0.5
+     */
+    static amrex::Real tanh_midpoint_gather_buffer;
     //! With mesh refinement, particles located inside a refinement patch, but within
     //! #n_current_deposition_buffer cells of the edge of the patch, will deposit their charge
     //! and current onto the lower refinement level instead of the refinement patch itself
@@ -878,6 +904,10 @@ public:
     static std::array<amrex::Real,3> CellSize (int lev);
     static amrex::RealBox getRealBox(const amrex::Box& bx, int lev);
 
+    [[nodiscard]] const amrex::MultiFab* getInterpWeightGBuffer (int lev) const
+    {
+        return interp_weight_gbuffer[lev].get();
+    }
     /**
      * \brief Return the lower corner of the box in real units.
      * \param bx The box
@@ -1392,6 +1422,7 @@ private:
         return gather_buffer_masks[lev].get();
     }
 
+
     /**
      * \brief Re-orders the Fornberg coefficients so that they can be used more conveniently for
      * finite-order centering operations. For example, for finite-order centering of order 6,
@@ -1565,6 +1596,11 @@ private:
     amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>, 3 > > Bfield_cax;
     amrex::Vector<std::unique_ptr<amrex::iMultiFab> > current_buffer_masks;
     amrex::Vector<std::unique_ptr<amrex::iMultiFab> > gather_buffer_masks;
+    /** Multifab that stores weights for interpolating fine and coarse solutions
+     *  in the buffer gather region, such that, the weight for fine solution is
+     *  0 near the coarse-fine interface, and 1 as the buffer gather region terminates in the fine patch
+     */
+    amrex::Vector<std::unique_ptr<amrex::MultiFab> > interp_weight_gbuffer;
 
     // If charge/current deposition buffers are used
     amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > current_buf;
