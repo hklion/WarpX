@@ -963,6 +963,7 @@ public:
      */
     [[nodiscard]] amrex::IntVect get_numprocs() const {return numprocs;}
 
+    bool m_boundary_potential_specified = false;
     ElectrostaticSolver::PoissonBoundaryHandler m_poisson_boundary_handler;
     void ComputeSpaceChargeField (bool reset_fields);
     void AddBoundaryField ();
@@ -1652,6 +1653,10 @@ private:
      * uniform plasma on a domain of size 128 by 128 by 128, from which the approximate
      * time per iteration per particle is computed. */
     amrex::Real costs_heuristic_particles_wt = amrex::Real(0);
+    /** Whether to use MakeSimilarDM when load balancing lev > 1 */
+    int do_similar_dm_refpatch = 0;
+    /** Whether to use SFC on vectorized BoxArrays from all levels */
+    int do_SFC_dm_vectorlevel = 0;
 
     // Determines timesteps for override sync
     utils::parser::IntervalsParser override_sync_intervals;
