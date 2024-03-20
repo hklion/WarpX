@@ -124,7 +124,7 @@ WarpX::LoadBalance ()
             if ((load_balance_efficiency_ratio_threshold > 0.0))
             {
                 doLoadBalance = (proposedEfficiency > load_balance_efficiency_ratio_threshold*currentEfficiency);
-                if (getistep(0) == get_load_balance_intervals()) {
+                if (getistep(0) == 100) {
                     doLoadBalance = true;
                 }
             }
