@@ -978,7 +978,7 @@ PhysicalParticleContainer::AddPlasma (PlasmaInjector const& plasma_injector, int
         rrfac = m_gdb->refRatio(0);
         fine_injection_box.coarsen(rrfac);
     }
-    static bool refineplasma = false;
+    bool refineplasma = false;
     amrex::ParticleLocator<amrex::DenseBins<amrex::Box> > refinepatch_locator;
     if (WarpX::refineAddplasma)
     {
