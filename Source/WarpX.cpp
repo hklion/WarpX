@@ -177,6 +177,7 @@ bool WarpX::use_filter_compensation = false;
 bool WarpX::serialize_initial_conditions = false;
 bool WarpX::refine_plasma     = false;
 bool WarpX::refineAddplasma   = false;
+amrex::IntVect WarpX::AddplasmaRefRatio(AMREX_D_DECL(1,1,1));
 
 int WarpX::num_mirrors = 0;
 
@@ -887,6 +888,22 @@ WarpX::ReadParameters ()
         pp_warpx.query("serialize_initial_conditions", serialize_initial_conditions);
         pp_warpx.query("refine_plasma", refine_plasma);
         pp_warpx.query("refineAddplasma", refineAddplasma);
+        amrex::Vector<int> addplasma_ref_ratio(AMREX_SPACEDIM,1);
+        const bool addplasma_ref_ratio_specified =
+            utils::parser::queryArrWithParser(
+                pp_warpx, "refineplasma_refratio",
+                addplasma_ref_ratio, 0, AMREX_SPACEDIM);
+        if (addplasma_ref_ratio_specified){
+            amrex::Print() << " refratio for addplasma is : ";
+            for (int i=0; i<AMREX_SPACEDIM; i++) {
+                AddplasmaRefRatio[i] = addplasma_ref_ratio[i];
+                amrex::Print() << " " << AddplasmaRefRatio[i];
+            }
+            amrex::Print() << "\n";
+        } else {
+            AddplasmaRefRatio = RefRatio[0];
+        }
+
         pp_warpx.query("do_dive_cleaning", do_dive_cleaning);
         pp_warpx.query("do_divb_cleaning", do_divb_cleaning);
         utils::parser::queryWithParser(

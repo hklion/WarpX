@@ -983,15 +983,15 @@ PhysicalParticleContainer::AddPlasma (PlasmaInjector const& plasma_injector, int
     if (WarpX::refineAddplasma)
     {
         refineplasma = true;
-        rrfac = m_gdb->refRatio(0);
+        rrfac = WarpX::AddplasmaRefRatio;
+        auto fineba = ParticleBoxArray(1);
+        auto coarsened_fineba = fineba;
+        coarsened_fineba.coarsen(m_gdb->refRatio(0));
+        if (!refinepatch_locator.isValid(coarsened_fineba)) {
+            refinepatch_locator.build(coarsened_fineba, Geom(0));
+        }
+        refinepatch_locator.setGeometry(Geom(0));
     }
-    auto fineba = ParticleBoxArray(1);
-    auto coarsened_fineba = fineba;
-    coarsened_fineba.coarsen(rrfac);
-    if (!refinepatch_locator.isValid(coarsened_fineba)) {
-        refinepatch_locator.build(coarsened_fineba, Geom(0));
-    }
-    refinepatch_locator.setGeometry(Geom(0));
     auto assignpartgrid = refinepatch_locator.getGridAssignor();
         // if assign_grid(ijk_vec) > 0, then we are in refinement patch. therefore refine plasma particles
         // else, usual num_part
