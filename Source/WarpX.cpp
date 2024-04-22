@@ -3135,40 +3135,40 @@ WarpX::BuildBufferMasks ()
                                 wtmsk(i,j,k) = 0.;
                                 return;
                             }
-                            //for (int ii = i-1; ii >= i-ngbuffer; --ii) {
-                            //    if (gmsk(ii,j,k)==0) {
-                            //        amrex::Real arg = (static_cast<amrex::Real>(i-ii)-ngbuffer*tanh_midpoint)
-                            //                          / ((1.-tanh_midpoint)*(ngbuffer/3.));
-                            //        wtmsk(i,j,k) = std::tanh(arg)*0.5 + 0.5;
-                            //        amrex::Print() << " i edge wt is " << wtmsk(i,j,k) << "\n";
-                            //        return;
-                            //    }
-                            //}
-                            //for (int ii = i+1; ii <= i+ngbuffer; ++ii) {
-                            //    if (gmsk(ii,j,k)==0) {
-                            //        amrex::Real arg = (static_cast<amrex::Real>(ii-i)-ngbuffer*tanh_midpoint)
-                            //                          / ((1.-tanh_midpoint)*(ngbuffer/3.));
-                            //        wtmsk(i,j,k) = std::tanh(arg)*0.5+0.5;
-                            //        amrex::Print() << " wt is " << wtmsk(i,j,k) << "\n";
-                            //        return;
-                            //    }
-                            //}
-                            for (int jj = j-1; jj >= j-ngbuffer; --jj) {
-                                if (gmsk(i,jj,k)==0) {
-                                    amrex::Real arg = (static_cast<amrex::Real>(j-jj)-ngbuffer*tanh_midpoint)
+                            for (int ii = i-1; ii >= i-ngbuffer; --ii) {
+                                if (gmsk(ii,j,k)==0) {
+                                    amrex::Real arg = (static_cast<amrex::Real>(i-ii)-ngbuffer*tanh_midpoint)
                                                       / ((1.-tanh_midpoint)*(ngbuffer/3.));
                                     wtmsk(i,j,k) = std::tanh(arg)*0.5 + 0.5;
+                                    amrex::Print() << " i edge wt is " << wtmsk(i,j,k) << "\n";
                                     return;
                                 }
                             }
-                            for (int jj = j+1; jj <= j+ngbuffer; ++jj) {
-                                if (gmsk(i,jj,k)==0) {
-                                    amrex::Real arg = (static_cast<amrex::Real>(jj - j)-ngbuffer*tanh_midpoint)
+                            for (int ii = i+1; ii <= i+ngbuffer; ++ii) {
+                                if (gmsk(ii,j,k)==0) {
+                                    amrex::Real arg = (static_cast<amrex::Real>(ii-i)-ngbuffer*tanh_midpoint)
                                                       / ((1.-tanh_midpoint)*(ngbuffer/3.));
                                     wtmsk(i,j,k) = std::tanh(arg)*0.5+0.5;
+                                    amrex::Print() << " wt is " << wtmsk(i,j,k) << "\n";
                                     return;
                                 }
                             }
+                            //for (int jj = j-1; jj >= j-ngbuffer; --jj) {
+                            //    if (gmsk(i,jj,k)==0) {
+                            //        amrex::Real arg = (static_cast<amrex::Real>(j-jj)-ngbuffer*tanh_midpoint)
+                            //                          / ((1.-tanh_midpoint)*(ngbuffer/3.));
+                            //        wtmsk(i,j,k) = std::tanh(arg)*0.5 + 0.5;
+                            //        return;
+                            //    }
+                            //}
+                            //for (int jj = j+1; jj <= j+ngbuffer; ++jj) {
+                            //    if (gmsk(i,jj,k)==0) {
+                            //        amrex::Real arg = (static_cast<amrex::Real>(jj - j)-ngbuffer*tanh_midpoint)
+                            //                          / ((1.-tanh_midpoint)*(ngbuffer/3.));
+                            //        wtmsk(i,j,k) = std::tanh(arg)*0.5+0.5;
+                            //        return;
+                            //    }
+                            //}
                             //for (int kk = k-1; kk >= k-ngbuffer; --kk) {
                             //    if (gmsk(i,j,kk)==0) {
                             //        amrex::Real arg = (static_cast<amrex::Real>(k-kk)-ngbuffer*tanh_midpoint)
