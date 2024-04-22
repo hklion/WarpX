@@ -445,6 +445,7 @@ WarpX::RemakeLevel (int lev, Real /*time*/, const BoxArray& ba, const Distributi
             // we can avoid redistributing these since we immediately re-build the values via BuildBufferMasks()
             RemakeMultiFab(current_buffer_masks[lev], dm, false ,lev);
             RemakeMultiFab(gather_buffer_masks[lev], dm, false ,lev);
+            RemakeMultiFab(interp_weight_gbuffer[lev], dm, false, lev);
 
             if (current_buffer_masks[lev] || gather_buffer_masks[lev]) {
                 BuildBufferMasks();

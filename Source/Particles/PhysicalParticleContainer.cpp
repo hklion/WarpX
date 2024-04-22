@@ -2028,12 +2028,11 @@ PhysicalParticleContainer::Evolve (int lev,
     WARPX_PROFILE_VAR_NS("PhysicalParticleContainer::Evolve::GatherAndPush", blp_fg);
 
     BL_ASSERT(OnSameGrids(lev,jx));
-
     amrex::LayoutData<amrex::Real>* cost = WarpX::getCosts(lev);
 
     const iMultiFab* current_masks = WarpX::CurrentBufferMasks(lev);
     const iMultiFab* gather_masks = WarpX::GatherBufferMasks(lev);
-
+    const amrex::MultiFab* weight_gbuffer = WarpX::GetInstance().getInterpWeightGBuffer(lev);
     const bool has_buffer = cEx || cjx;
 
     if (m_do_back_transformed_particles)
@@ -2062,7 +2061,8 @@ PhysicalParticleContainer::Evolve (int lev,
 
         FArrayBox filtered_Ex, filtered_Ey, filtered_Ez;
         FArrayBox filtered_Bx, filtered_By, filtered_Bz;
-
+        FArrayBox bufferEx, bufferEy, bufferEz;
+        FArrayBox bufferBx, bufferBy, bufferBz;
         for (WarpXParIter pti(*this, lev); pti.isValid(); ++pti)
         {
             if (cost && WarpX::load_balance_costs_update_algo == LoadBalanceCostsUpdateAlgo::Timers)
@@ -2091,6 +2091,7 @@ PhysicalParticleContainer::Evolve (int lev,
             FArrayBox const* bzfab = &Bz[pti];
 
             Elixir exeli, eyeli, ezeli, bxeli, byeli, bzeli;
+            Elixir buf_exeli, buf_eyeli, buf_ezeli, buf_bxeli, buf_byeli, buf_bzeli;
 
             if (WarpX::use_fdtd_nci_corr)
             {
@@ -2132,7 +2133,7 @@ PhysicalParticleContainer::Evolve (int lev,
 
                 DepositCharge(pti, wp, ion_lev, rho, 0, 0,
                               np_current, thread_num, lev, lev);
-                if (has_buffer){
+                if ((np-np_current)> 0 ){
                     DepositCharge(pti, wp, ion_lev, crho, 0, np_current,
                                   np-np_current, thread_num, lev, lev-1);
                 }
@@ -2175,8 +2176,19 @@ PhysicalParticleContainer::Evolve (int lev,
                     FArrayBox const* cbyfab = &(*cBy)[pti];
                     FArrayBox const* cbzfab = &(*cBz)[pti];
 
+                    //// buffer box (Both 2D and 3D)
+                    InterpolateFieldsInGatherBuffer(box, bufferEx, bufferEy, bufferEz,
+                                                         bufferBx, bufferBy, bufferBz,
+                                                         buf_exeli, buf_eyeli, buf_ezeli,
+                                                         buf_bxeli, buf_byeli, buf_bzeli,
+                                                         exfab, eyfab, ezfab, bxfab, byfab, bzfab,
+                                                         cexfab, ceyfab, cezfab, cbxfab, cbyfab, cbzfab,
+                                                         (*gather_masks)[pti], (*weight_gbuffer)[pti],
+                                                         ref_ratio);
+
                     if (WarpX::use_fdtd_nci_corr)
                     {
+                        // should this be bufferEFields*
                         // Filter arrays (*cEx)[pti], store the result in
                         // filtered_Ex and update pointer cexfab so that it
                         // points to filtered_Ex (and do the same for all
@@ -2188,15 +2200,17 @@ PhysicalParticleContainer::Evolve (int lev,
                                        (*cBx)[pti], (*cBy)[pti], (*cBz)[pti],
                                        cexfab, ceyfab, cezfab, cbxfab, cbyfab, cbzfab);
                     }
-
                     // Field gather and push for particles in gather buffers
                     e_is_nodal = cEx->is_nodal() and cEy->is_nodal() and cEz->is_nodal();
                     if (push_type == PushType::Explicit) {
-                        PushPX(pti, cexfab, ceyfab, cezfab,
-                               cbxfab, cbyfab, cbzfab,
+                        //PushPX(pti, cexfab, ceyfab, cezfab,
+                        //       cbxfab, cbyfab, cbzfab,
+                        PushPX(pti, &bufferEx, &bufferEy, &bufferEz,
+                               &bufferBx, &bufferBy, &bufferBz,
                                cEx->nGrowVect(), e_is_nodal,
                                nfine_gather, np-nfine_gather,
-                               lev, lev-1, dt, ScaleFields(false), a_dt_type);
+                               lev, gather_lev, dt, ScaleFields(false), a_dt_type);
+                               //lev, lev-1, dt, ScaleFields(false), a_dt_type);
                     } else if (push_type == PushType::Implicit) {
                         ImplicitPushXP(pti, cexfab, ceyfab, cezfab,
                                        cbxfab, cbyfab, cbzfab,
@@ -2205,7 +2219,6 @@ PhysicalParticleContainer::Evolve (int lev,
                                        lev, lev-1, dt, ScaleFields(false), a_dt_type);
                     }
                 }
-
                 WARPX_PROFILE_VAR_STOP(blp_fg);
 
                 // Current Deposition
@@ -2226,7 +2239,7 @@ PhysicalParticleContainer::Evolve (int lev,
                                    0, np_current, thread_num,
                                    lev, lev, dt / WarpX::n_subcycle_current, relative_time, push_type);
 
-                        if (has_buffer)
+                        if ((np-np_current)>0)
                         {
                             // Deposit in buffers
                             DepositCurrent(pti, wp, uxp, uyp, uzp, ion_lev, cjx, cjy, cjz,
@@ -2247,7 +2260,7 @@ PhysicalParticleContainer::Evolve (int lev,
 
                     DepositCharge(pti, wp, ion_lev, rho, 1, 0,
                                   np_current, thread_num, lev, lev);
-                    if (has_buffer){
+                    if ((np-np_current)>0 ){
                         DepositCharge(pti, wp, ion_lev, crho, 1, np_current,
                                       np-np_current, thread_num, lev, lev-1);
                     }
@@ -2348,6 +2361,113 @@ PhysicalParticleContainer::applyNCIFilter (
         filtered_Ey, filtered_Bx, filtered_Bz,
         Ey, Bx, Bz, ey_ptr, bx_ptr, bz_ptr);
 #endif
+}
+
+void
+PhysicalParticleContainer::InterpolateFieldsInGatherBuffer (const Box& box,
+    amrex::FArrayBox& bufferEx, amrex::FArrayBox& bufferEy, amrex::FArrayBox& bufferEz,
+    amrex::FArrayBox& bufferBx, amrex::FArrayBox& bufferBy, amrex::FArrayBox& bufferBz,
+    Elixir& buf_exeli, Elixir& buf_eyeli, Elixir& buf_ezeli,
+    Elixir& buf_bxeli, Elixir& buf_byeli, Elixir& buf_bzeli,
+    FArrayBox const *& ex_ptr, FArrayBox const *& ey_ptr, FArrayBox const* & ez_ptr,
+    FArrayBox const *& bx_ptr, FArrayBox const *& by_ptr, FArrayBox const* & bz_ptr,
+    FArrayBox const *& cex_ptr, FArrayBox const *& cey_ptr, FArrayBox const* & cez_ptr,
+    FArrayBox const *& cbx_ptr, FArrayBox const *& cby_ptr, FArrayBox const* & cbz_ptr,
+    const IArrayBox& gather_mask, const FArrayBox& weight_gbuffer,
+    const amrex::IntVect ref_ratio)
+{
+    amrex::Box tmp_exbox = amrex::convert(box,ex_ptr->box().ixType());
+    amrex::Box tmp_eybox = amrex::convert(box,ey_ptr->box().ixType());
+    amrex::Box tmp_ezbox = amrex::convert(box,ez_ptr->box().ixType());
+
+    bufferEx.resize(tmp_exbox);
+    buf_exeli = bufferEx.elixir();
+    bufferEy.resize(tmp_eybox);
+    buf_eyeli = bufferEy.elixir();
+    bufferEz.resize(tmp_ezbox);
+    buf_ezeli = bufferEz.elixir();
+    WeightedSumInGatherBuffer(tmp_exbox, tmp_eybox, tmp_ezbox,
+                    bufferEx.array(), bufferEy.array(), bufferEz.array(),
+                    cex_ptr->array(), cey_ptr->array(), cez_ptr->array(),
+                    ex_ptr->array(), ey_ptr->array(), ez_ptr->array(),
+                    gather_mask.array(), weight_gbuffer.array(), ref_ratio);
+
+    amrex::Box tmp_bxbox = amrex::convert(box,bx_ptr->box().ixType());
+    amrex::Box tmp_bybox = amrex::convert(box,by_ptr->box().ixType());
+    amrex::Box tmp_bzbox = amrex::convert(box,bz_ptr->box().ixType());
+    bufferBx.resize(tmp_bxbox);
+    buf_bxeli = bufferBx.elixir();
+    bufferBy.resize(tmp_bybox);
+    buf_byeli = bufferBy.elixir();
+    bufferBz.resize(tmp_bzbox);
+    buf_bzeli = bufferBz.elixir();
+
+    WeightedSumInGatherBuffer(tmp_bxbox, tmp_bybox, tmp_bzbox,
+                    bufferBx.array(), bufferBy.array(), bufferBz.array(),
+                    cbx_ptr->array(), cby_ptr->array(), cbz_ptr->array(),
+                    bx_ptr->array(), by_ptr->array(), bz_ptr->array(),
+                    gather_mask.array(), weight_gbuffer.array(), ref_ratio);
+}
+
+void
+PhysicalParticleContainer::WeightedSumInGatherBuffer (
+                      const amrex::Box& tmp_xbox, const amrex::Box& tmp_ybox, const amrex::Box& tmp_zbox,
+                      amrex::Array4<amrex::Real> const & xbuf_field_arr, amrex::Array4<amrex::Real> const& ybuf_field_arr,
+                      amrex::Array4<amrex::Real> const & zbuf_field_arr,
+                      amrex::Array4<const amrex::Real> cfx_arr, amrex::Array4<const amrex::Real> cfy_arr,
+                      amrex::Array4<const amrex::Real> cfz_arr,
+                      amrex::Array4<const amrex::Real> fx_arr, amrex::Array4<const amrex::Real> fy_arr,
+                      amrex::Array4<const amrex::Real> fz_arr,
+                      amrex::Array4<const int > gm_arr, amrex::Array4<const amrex::Real> wt_arr,
+                      const amrex::IntVect ref_ratio)
+{
+    amrex::ParallelFor( tmp_xbox, tmp_ybox, tmp_zbox,
+        [=] AMREX_GPU_DEVICE (int i, int j, int k) {
+            int ii = amrex::coarsen(i,ref_ratio[0]);
+            int jj = j;
+            int kk = k;
+#if defined(WARPX_DIM_XZ) || defined(WARPX_DIM_RZ)
+            jj = amrex::coarsen(j,ref_ratio[1]);
+#elif defined(WARPX_DIM_3D)
+            kk = amrex::coarsen(k,ref_ratio[2]);
+#endif
+            if (gm_arr(i,j,k) == 0) {
+                xbuf_field_arr(i,j,k) = wt_arr(i,j,k)*fx_arr(i,j,k) + (1._rt-wt_arr(i,j,k))*cfx_arr(ii,jj,kk);
+            } else {
+                xbuf_field_arr(i,j,k) = fx_arr(i,j,k);
+            }
+        },
+        [=] AMREX_GPU_DEVICE (int i, int j, int k) {
+            int ii = amrex::coarsen(i,ref_ratio[0]);
+            int jj = j;
+            int kk = k;
+#if defined(WARPX_DIM_XZ) || defined(WARPX_DIM_RZ)
+            jj = amrex::coarsen(j,ref_ratio[1]);
+#elif defined(WARPX_DIM_3D)
+            kk = amrex::coarsen(k,ref_ratio[2]);
+#endif
+            if (gm_arr(i,j,k) == 0) {
+                ybuf_field_arr(i,j,k) = wt_arr(i,j,k)*fy_arr(i,j,k) + (1._rt-wt_arr(i,j,k))*cfy_arr(ii,jj,kk);
+            } else {
+                ybuf_field_arr(i,j,k) = fy_arr(i,j,k);
+            }
+        },
+        [=] AMREX_GPU_DEVICE (int i, int j, int k) {
+            int ii = amrex::coarsen(i,ref_ratio[0]);
+            int jj = j;
+            int kk = k;
+#if defined(WARPX_DIM_XZ) || defined(WARPX_DIM_RZ)
+            jj = amrex::coarsen(j,ref_ratio[1]);
+#elif defined(WARPX_DIM_3D)
+            kk = amrex::coarsen(k,ref_ratio[2]);
+#endif
+            if (gm_arr(i,j,k) == 0) {
+               zbuf_field_arr(i,j,k) = wt_arr(i,j,k)*fz_arr(i,j,k) + (1._rt-wt_arr(i,j,k))*cfz_arr(ii,jj,kk);
+            } else {
+               zbuf_field_arr(i,j,k) = fz_arr(i,j,k);
+            }
+        }
+    );
 }
 
 // Loop over all particles in the particle container and
