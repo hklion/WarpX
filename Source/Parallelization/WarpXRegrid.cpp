@@ -170,8 +170,8 @@ WarpX::LoadBalance ()
         //        ablastr::coarsen::sample::Coarsen(*costs[lev-1], *costs[lev],0,0,1,0,WarpX::RefRatio(lev-1));
         //    }
         //}
-
-        for (int lev = 0; lev <= nLevels; ++lev)
+        int startlev = WarpX::load_balance_startlevel;
+        for (int lev = startlev; lev <= nLevels; ++lev)
         {
             int doLoadBalance = false;
 

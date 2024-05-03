@@ -708,7 +708,7 @@ public:
     {
         return load_balance_intervals;
     }
-
+    static int load_balance_startlevel;
     /**
      * \brief Private function for spectral solver
      * Applies a damping factor in the guards cells that extend

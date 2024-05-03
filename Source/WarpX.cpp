@@ -127,6 +127,7 @@ bool WarpX::do_single_precision_comms = false;
 bool WarpX::do_subcycle_current = false;
 int WarpX::n_subcycle_current = 1;
 bool WarpX::do_abc_in_pml = false;
+int WarpX::load_balance_startlevel = 0;
 
 bool WarpX::do_shared_mem_charge_deposition = false;
 bool WarpX::do_shared_mem_current_deposition = false;
@@ -1353,6 +1354,7 @@ WarpX::ReadParameters ()
         pp_algo.query("load_balance_with_sfc", load_balance_with_sfc);
         pp_algo.query("do_similar_dm_refpatch", do_similar_dm_refpatch);
         pp_algo.query("do_SFC_dm_vectorlevel",do_SFC_dm_vectorlevel);
+	pp_algo.query("load_balance_startlevel",load_balance_startlevel);
         // Knapsack factor only used with non-SFC strategy
         if (!load_balance_with_sfc) {
             pp_algo.query("load_balance_knapsack_factor", load_balance_knapsack_factor);
