@@ -148,7 +148,9 @@ namespace
 
         AMREX_GPU_HOST_DEVICE
         PDim3(const amrex::XDim3& a):
-            x{a.x}, y{a.y}, z{a.z}
+            x{static_cast<ParticleReal>(a.x)},
+            y{static_cast<ParticleReal>(a.y)},
+            z{static_cast<ParticleReal>(a.z)}
         {}
 
         AMREX_GPU_HOST_DEVICE
@@ -444,6 +446,14 @@ PhysicalParticleContainer::PhysicalParticleContainer (AmrCore* amr_core, int isp
     pp_boundary.query("reflect_all_velocities", flag);
     m_boundary_conditions.Set_reflect_all_velocities(flag);
 
+    // currently supports only isotropic thermal distribution
+    // same distribution is applied to all boundaries
+    const amrex::ParmParse pp_species_boundary("boundary." + species_name);
+    if (WarpX::isAnyParticleBoundaryThermal()) {
+        amrex::Real boundary_uth;
+        utils::parser::getWithParser(pp_species_boundary,"u_th",boundary_uth);
+        m_boundary_conditions.SetThermalVelocity(boundary_uth);
+    }
 }
 
 PhysicalParticleContainer::PhysicalParticleContainer (AmrCore* amr_core)
@@ -521,14 +531,22 @@ void PhysicalParticleContainer::MapParticletoBoostedFrame (
 }
 
 void
-PhysicalParticleContainer::AddGaussianBeam (
-    PlasmaInjector const& plasma_injector,
-    const Real x_m, const Real y_m, const Real z_m,
-    const Real x_rms, const Real y_rms, const Real z_rms,
-    const Real x_cut, const Real y_cut, const Real z_cut,
-    const Real q_tot, long npart,
-    const int do_symmetrize,
-    const int symmetrization_order, const Real focal_distance) {
+PhysicalParticleContainer::AddGaussianBeam (PlasmaInjector const& plasma_injector){
+
+    const Real x_m = plasma_injector.x_m;
+    const Real y_m = plasma_injector.y_m;
+    const Real z_m = plasma_injector.z_m;
+    const Real x_rms = plasma_injector.x_rms;
+    const Real y_rms = plasma_injector.y_rms;
+    const Real z_rms = plasma_injector.z_rms;
+    const Real x_cut = plasma_injector.x_cut;
+    const Real y_cut = plasma_injector.y_cut;
+    const Real z_cut = plasma_injector.z_cut;
+    const Real q_tot = plasma_injector.q_tot;
+    long npart = plasma_injector.npart;
+    const int do_symmetrize = plasma_injector.do_symmetrize;
+    const int symmetrization_order = plasma_injector.symmetrization_order;
+    const Real focal_distance = plasma_injector.focal_distance;
 
     // Declare temporary vectors on the CPU
     Gpu::HostVector<ParticleReal> particle_x;
@@ -918,21 +936,7 @@ PhysicalParticleContainer::AddParticles (int lev)
         }
 
         if (plasma_injector->gaussian_beam) {
-            AddGaussianBeam(*plasma_injector,
-                            plasma_injector->x_m,
-                            plasma_injector->y_m,
-                            plasma_injector->z_m,
-                            plasma_injector->x_rms,
-                            plasma_injector->y_rms,
-                            plasma_injector->z_rms,
-                            plasma_injector->x_cut,
-                            plasma_injector->y_cut,
-                            plasma_injector->z_cut,
-                            plasma_injector->q_tot,
-                            plasma_injector->npart,
-                            plasma_injector->do_symmetrize,
-                            plasma_injector->symmetrization_order,
-                            plasma_injector->focal_distance);
+            AddGaussianBeam(*plasma_injector);
         }
 
         if (plasma_injector->external_file) {
@@ -998,6 +1002,19 @@ PhysicalParticleContainer::AddPlasma (PlasmaInjector const& plasma_injector, int
     const int nmodes = WarpX::n_rz_azimuthal_modes;
     const bool radially_weighted = plasma_injector.radially_weighted;
 #endif
+
+
+    // User-defined integer and real attributes: prepare parsers
+    const auto n_user_int_attribs = static_cast<int>(m_user_int_attribs.size());
+    const auto n_user_real_attribs = static_cast<int>(m_user_real_attribs.size());
+    amrex::Gpu::PinnedVector< amrex::ParserExecutor<7> > user_int_attrib_parserexec_pinned(n_user_int_attribs);
+    amrex::Gpu::PinnedVector< amrex::ParserExecutor<7> > user_real_attrib_parserexec_pinned(n_user_real_attribs);
+    for (int ia = 0; ia < n_user_int_attribs; ++ia) {
+        user_int_attrib_parserexec_pinned[ia] = m_user_int_attrib_parser[ia]->compile<7>();
+    }
+    for (int ia = 0; ia < n_user_real_attribs; ++ia) {
+        user_real_attrib_parserexec_pinned[ia] = m_user_real_attrib_parser[ia]->compile<7>();
+    }
 
     MFItInfo info;
     if (do_tiling && Gpu::notInLaunchRegion()) {
@@ -1152,19 +1169,13 @@ PhysicalParticleContainer::AddPlasma (PlasmaInjector const& plasma_injector, int
         }
         uint64_t * AMREX_RESTRICT pa_idcpu = soa.GetIdCPUData().data() + old_size;
         // user-defined integer and real attributes
-        const auto n_user_int_attribs = static_cast<int>(m_user_int_attribs.size());
-        const auto n_user_real_attribs = static_cast<int>(m_user_real_attribs.size());
         amrex::Gpu::PinnedVector<int*> pa_user_int_pinned(n_user_int_attribs);
         amrex::Gpu::PinnedVector<ParticleReal*> pa_user_real_pinned(n_user_real_attribs);
-        amrex::Gpu::PinnedVector< amrex::ParserExecutor<7> > user_int_attrib_parserexec_pinned(n_user_int_attribs);
-        amrex::Gpu::PinnedVector< amrex::ParserExecutor<7> > user_real_attrib_parserexec_pinned(n_user_real_attribs);
         for (int ia = 0; ia < n_user_int_attribs; ++ia) {
             pa_user_int_pinned[ia] = soa.GetIntData(particle_icomps[m_user_int_attribs[ia]]).data() + old_size;
-            user_int_attrib_parserexec_pinned[ia] = m_user_int_attrib_parser[ia]->compile<7>();
         }
         for (int ia = 0; ia < n_user_real_attribs; ++ia) {
             pa_user_real_pinned[ia] = soa.GetRealData(particle_comps[m_user_real_attribs[ia]]).data() + old_size;
-            user_real_attrib_parserexec_pinned[ia] = m_user_real_attrib_parser[ia]->compile<7>();
         }
 #ifdef AMREX_USE_GPU
         // To avoid using managed memory, we first define pinned memory vector, initialize on cpu,
@@ -1472,7 +1483,7 @@ PhysicalParticleContainer::AddPlasma (PlasmaInjector const& plasma_injector, int
     // Remove particles that are inside the embedded boundaries
 #ifdef AMREX_USE_EB
     auto & distance_to_eb = WarpX::GetInstance().GetDistanceToEB();
-    scrapeParticles( *this, amrex::GetVecOfConstPtrs(distance_to_eb), ParticleBoundaryProcess::Absorb());
+    scrapeParticlesAtEB( *this, amrex::GetVecOfConstPtrs(distance_to_eb), ParticleBoundaryProcess::Absorb());
 #endif
 
     // The function that calls this is responsible for redistributing particles.
@@ -1969,7 +1980,7 @@ PhysicalParticleContainer::AddPlasmaFlux (PlasmaInjector const& plasma_injector,
     // Remove particles that are inside the embedded boundaries
 #ifdef AMREX_USE_EB
     auto & distance_to_eb = WarpX::GetInstance().GetDistanceToEB();
-    scrapeParticles(tmp_pc, amrex::GetVecOfConstPtrs(distance_to_eb), ParticleBoundaryProcess::Absorb());
+    scrapeParticlesAtEB(tmp_pc, amrex::GetVecOfConstPtrs(distance_to_eb), ParticleBoundaryProcess::Absorb());
 #endif
 
     // Redistribute the new particles that were added to the temporary container.
@@ -2229,6 +2240,8 @@ PhysicalParticleContainer::Evolve (int lev,
                 // Deposit charge after particle push, in component 1 of MultiFab rho.
                 // (Skipped for electrostatic solver, as this may lead to out-of-bounds)
                 if (WarpX::electrostatic_solver_id == ElectrostaticSolverAlgo::None) {
+                    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(rho->nComp() >= 2,
+                        "Cannot deposit charge in rho component 1: only component 0 is allocated!");
 
                     const int* const AMREX_RESTRICT ion_lev = (do_field_ionization)?
                         pti.GetiAttribs(particle_icomps["ionizationLevel"]).dataPtr():nullptr;
@@ -2868,11 +2881,11 @@ PhysicalParticleContainer::PushPX (WarpXParIter& pti,
     // Using this version of ParallelFor with compile time options
     // improves performance when qed or external EB are not used by reducing
     // register pressure.
-    amrex::ParallelFor(TypeList<CompileTimeOptions<no_exteb,has_exteb>,
-                                CompileTimeOptions<no_qed  ,has_qed>>{},
-                       {exteb_runtime_flag, qed_runtime_flag},
-                       np_to_push, [=] AMREX_GPU_DEVICE (long ip, auto exteb_control,
-                                                         auto qed_control)
+    amrex::ParallelFor(
+        TypeList<CompileTimeOptions<no_exteb,has_exteb>, CompileTimeOptions<no_qed  ,has_qed>>{},
+        {exteb_runtime_flag, qed_runtime_flag},
+        np_to_push,
+        [=] AMREX_GPU_DEVICE (long ip, auto exteb_control, auto qed_control)
     {
         amrex::ParticleReal xp, yp, zp;
         getPosition(ip, xp, yp, zp);
@@ -3361,17 +3374,21 @@ void PhysicalParticleContainer::resample (const int timestep, const bool verbose
     WARPX_PROFILE_VAR_START(blp_resample_actual);
     if (m_resampler.triggered(timestep, global_numparts))
     {
-        if (verbose) {
-            amrex::Print() << Utils::TextMsg::Info(
-                "Resampling " + species_name + " at step " + std::to_string(timestep)
-            );
-        }
+        Redistribute();
         for (int lev = 0; lev <= maxLevel(); lev++)
         {
             for (WarpXParIter pti(*this, lev); pti.isValid(); ++pti)
             {
                 m_resampler(pti, lev, this);
             }
+        }
+        deleteInvalidParticles();
+        if (verbose) {
+            amrex::Print() << Utils::TextMsg::Info(
+                "Resampled " + species_name + " at step " + std::to_string(timestep)
+                + ": macroparticle count decreased by "
+                + std::to_string(static_cast<int>(global_numparts - TotalNumberOfParticles()))
+            );
         }
     }
     WARPX_PROFILE_VAR_STOP(blp_resample_actual);
@@ -3393,14 +3410,14 @@ bool PhysicalParticleContainer::has_breit_wheeler () const
 
 void
 PhysicalParticleContainer::
-set_breit_wheeler_engine_ptr (std::shared_ptr<BreitWheelerEngine> ptr)
+set_breit_wheeler_engine_ptr (const std::shared_ptr<BreitWheelerEngine>& ptr)
 {
     m_shr_p_bw_engine = ptr;
 }
 
 void
 PhysicalParticleContainer::
-set_quantum_sync_engine_ptr (std::shared_ptr<QuantumSynchrotronEngine> ptr)
+set_quantum_sync_engine_ptr (const std::shared_ptr<QuantumSynchrotronEngine>& ptr)
 {
     m_shr_p_qs_engine = ptr;
 }
