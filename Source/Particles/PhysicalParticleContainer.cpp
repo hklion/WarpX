@@ -2091,7 +2091,6 @@ PhysicalParticleContainer::Evolve (int lev,
             FArrayBox const* bzfab = &Bz[pti];
 
             Elixir exeli, eyeli, ezeli, bxeli, byeli, bzeli;
-            Elixir buf_exeli, buf_eyeli, buf_ezeli, buf_bxeli, buf_byeli, buf_bzeli;
 
             if (WarpX::use_fdtd_nci_corr)
             {
@@ -2176,16 +2175,6 @@ PhysicalParticleContainer::Evolve (int lev,
                     FArrayBox const* cbyfab = &(*cBy)[pti];
                     FArrayBox const* cbzfab = &(*cBz)[pti];
 
-                    //// buffer box (Both 2D and 3D)
-                    InterpolateFieldsInGatherBuffer(box, bufferEx, bufferEy, bufferEz,
-                                                         bufferBx, bufferBy, bufferBz,
-                                                         buf_exeli, buf_eyeli, buf_ezeli,
-                                                         buf_bxeli, buf_byeli, buf_bzeli,
-                                                         exfab, eyfab, ezfab, bxfab, byfab, bzfab,
-                                                         cexfab, ceyfab, cezfab, cbxfab, cbyfab, cbzfab,
-                                                         (*gather_masks)[pti], (*weight_gbuffer)[pti],
-                                                         ref_ratio);
-
                     if (WarpX::use_fdtd_nci_corr)
                     {
                         // should this be bufferEFields*
@@ -2203,14 +2192,11 @@ PhysicalParticleContainer::Evolve (int lev,
                     // Field gather and push for particles in gather buffers
                     e_is_nodal = cEx->is_nodal() and cEy->is_nodal() and cEz->is_nodal();
                     if (push_type == PushType::Explicit) {
-                        //PushPX(pti, cexfab, ceyfab, cezfab,
-                        //       cbxfab, cbyfab, cbzfab,
-                        PushPX(pti, &bufferEx, &bufferEy, &bufferEz,
-                               &bufferBx, &bufferBy, &bufferBz,
+                        PushPX(pti, cexfab, ceyfab, cezfab,
+                               cbxfab, cbyfab, cbzfab,
                                cEx->nGrowVect(), e_is_nodal,
                                nfine_gather, np-nfine_gather,
-                               lev, gather_lev, dt, ScaleFields(false), a_dt_type);
-                               //lev, lev-1, dt, ScaleFields(false), a_dt_type);
+                               lev, lev-1, dt, ScaleFields(false), a_dt_type);
                     } else if (push_type == PushType::Implicit) {
                         ImplicitPushXP(pti, cexfab, ceyfab, cezfab,
                                        cbxfab, cbyfab, cbzfab,
