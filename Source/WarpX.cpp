@@ -211,6 +211,8 @@ std::map<std::string, amrex::iMultiFab *> WarpX::imultifab_map;
 
 IntVect WarpX::filter_npass_each_dir(1);
 
+amrex::IntVect WarpX::n_field_gather_buffer_each_dir(-1);
+amrex::IntVect WarpX::n_current_deposition_buffer_each_dir(-1);
 int WarpX::n_field_gather_buffer = -1;
 int WarpX::n_current_deposition_buffer = -1;
 bool WarpX::do_fieldinterp_gather_buffer = false;
@@ -912,8 +914,22 @@ WarpX::ReadParameters ()
         pp_warpx.query("do_divb_cleaning", do_divb_cleaning);
         utils::parser::queryWithParser(
             pp_warpx, "n_field_gather_buffer", n_field_gather_buffer);
+        amrex::Vector<int> nfieldgatherbuffer_eachdir(AMREX_SPACEDIM,n_field_gather_buffer);
+        utils::parser::queryArrWithParser( 
+            pp_warpx, "n_field_gather_buffer_each_dir", nfieldgatherbuffer_eachdir, 0, AMREX_SPACEDIM);
+        for (int i = 0; i < AMREX_SPACEDIM; ++i) {
+            n_field_gather_buffer_each_dir[i] = nfieldgatherbuffer_eachdir[i];
+        }
         utils::parser::queryWithParser(
             pp_warpx, "n_current_deposition_buffer", n_current_deposition_buffer);
+        amrex::Vector<int> ncurrentdepositionbuffer_eachdir(AMREX_SPACEDIM,n_current_deposition_buffer);
+        utils::parser::queryArrWithParser( 
+            pp_warpx, "n_current_deposition_buffer_each_dir",
+            ncurrentdepositionbuffer_eachdir, 0, AMREX_SPACEDIM);
+        for (int i = 0; i < AMREX_SPACEDIM; ++i) {
+            n_current_deposition_buffer_each_dir[i] = ncurrentdepositionbuffer_eachdir[i];
+        }
+
         utils::parser::queryWithParser(
             pp_warpx, "do_fieldinterp_gather_buffer", do_fieldinterp_gather_buffer);
         utils::parser::queryWithParser(
@@ -2711,13 +2727,14 @@ WarpX::AllocLevelMFs (int lev, const BoxArray& ba, const DistributionMapping& dm
     //
     // Copy of the coarse aux
     //
-    if (lev > 0 && (n_field_gather_buffer > 0 || n_current_deposition_buffer > 0 ||
+    if (lev > 0 && (n_field_gather_buffer_each_dir.max() > 0 ||
+                    n_current_deposition_buffer_each_dir.max() > 0 ||
                     mypc->nSpeciesGatherFromMainGrid() > 0))
     {
         BoxArray cba = ba;
         cba.coarsen(refRatio(lev-1));
 
-        if (n_field_gather_buffer > 0 || mypc->nSpeciesGatherFromMainGrid() > 0) {
+        if (n_field_gather_buffer_each_dir.max() > 0 || mypc->nSpeciesGatherFromMainGrid() > 0) {
             if (aux_is_nodal) {
                 BoxArray const& cnba = amrex::convert(cba,IntVect::TheNodeVector());
                 AllocInitMultiFab(Bfield_cax[lev][0], cnba,dm,ncomps,ngEB,lev, "Bfield_cax[x]");
@@ -2744,7 +2761,7 @@ WarpX::AllocLevelMFs (int lev, const BoxArray& ba, const DistributionMapping& dm
             AllocInitMultiFab(interp_weight_gbuffer[lev], amrex::convert(ba, IntVect::TheNodeVector()), dm, ncomps, ngEB, lev, "interp_weight_gbuffer", 0.0_rt);
         }
 
-        if (n_current_deposition_buffer > 0) {
+        if (n_current_deposition_buffer_each_dir.max() > 0) {
             amrex::Print() << " current dep buffer : " << n_current_deposition_buffer << "\n";
             AllocInitMultiFab(current_buf[lev][0], amrex::convert(cba,jx_nodal_flag),dm,ncomps,ngJ,lev, "current_buf[x]");
             AllocInitMultiFab(current_buf[lev][1], amrex::convert(cba,jy_nodal_flag),dm,ncomps,ngJ,lev, "current_buf[y]");
@@ -3121,7 +3138,9 @@ WarpX::BuildBufferMasks ()
     {
         for (int ipass = 0; ipass < 2; ++ipass)
         {
-            const int ngbuffer = (ipass == 0) ? n_current_deposition_buffer : n_field_gather_buffer;
+            //const int ngbuffer = (ipass == 0) ? n_current_deposition_buffer : n_field_gather_buffer;
+            const amrex::IntVect ngbuffer = (ipass == 0) ? n_current_deposition_buffer_each_dir
+                                                         : n_field_gather_buffer_each_dir;
             iMultiFab* bmasks = (ipass == 0) ? current_buffer_masks[lev].get() : gather_buffer_masks[lev].get();
             if (bmasks)
             {
@@ -3258,11 +3277,11 @@ WarpX::SetWeightsInGatherBuffer(const amrex::Box tbx, amrex::Array4<amrex::Real>
  */
 void
 WarpX::BuildBufferMasksInBox ( const amrex::Box tbx, amrex::IArrayBox &buffer_mask,
-                               const amrex::IArrayBox &guard_mask, const int ng )
+                               const amrex::IArrayBox &guard_mask, const amrex::IntVect ng )
 {
     auto const& msk = buffer_mask.array();
     auto const& gmsk = guard_mask.const_array();
-    const amrex::Dim3 ng3 = amrex::IntVect(ng).dim3();
+    const amrex::Dim3 ng3 = ng.dim3();
     amrex::ParallelFor(tbx, [=] AMREX_GPU_DEVICE (int i, int j, int k)
     {
         for         (int kk = k-ng3.z; kk <= k+ng3.z; ++kk) {

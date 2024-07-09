@@ -361,6 +361,7 @@ public:
     //! #n_field_gather_buffer cells of the edge of the patch, will gather the fields
     //! from the lower refinement level instead of the refinement patch itself
     static int n_field_gather_buffer;
+    static amrex::IntVect n_field_gather_buffer_each_dir;
 
     /**
      * If true, particles located inside refinement patch but within
@@ -391,6 +392,7 @@ public:
     //! #n_current_deposition_buffer cells of the edge of the patch, will deposit their charge
     //! and current onto the lower refinement level instead of the refinement patch itself
     static int n_current_deposition_buffer;
+    static amrex::IntVect n_current_deposition_buffer_each_dir;
 
     //! Integer that corresponds to the type of grid used in the simulation
     //! (collocated, staggered, hybrid)
@@ -1126,7 +1128,7 @@ public:
 
     // for cuda
     void BuildBufferMasksInBox ( amrex::Box tbx, amrex::IArrayBox &buffer_mask,
-                                 const amrex::IArrayBox &guard_mask, int ng );
+                                 const amrex::IArrayBox &guard_mask, const amrex::IntVect ng );
 
     void SetWeightsInGatherBuffer(const amrex::Box tbx, amrex::Array4<amrex::Real> wtmsk,
                                   const amrex::Array4<int const> gmsk, const amrex::Array4<int const> bmsk,
