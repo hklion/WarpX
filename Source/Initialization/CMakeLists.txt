@@ -12,6 +12,7 @@ foreach(D IN LISTS WarpX_DIMS)
         VelocityProperties.cpp
         ReconnectionPerturbation.cpp
         WarpXAMReXInit.cpp
+        WarpXInit.cpp
         WarpXInitData.cpp
     )
 endforeach()

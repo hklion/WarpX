@@ -160,6 +160,9 @@ struct FindEmbeddedBoundaryIntersection {
 #else
         amrex::ignore_unused(x_temp, y_temp, z_temp,normal);
 #endif
+
+        // flip id to positive in destination
+        amrex::ParticleIDWrapper{dst.m_idcpu[dst_i]}.make_valid();
     }
 };
 #endif
@@ -199,6 +202,9 @@ struct CopyAndTimestamp {
         dst.m_runtime_rdata[m_normal_index][dst_i]= n[0];
         dst.m_runtime_rdata[m_normal_index+1][dst_i]= n[1];
         dst.m_runtime_rdata[m_normal_index+2][dst_i]= n[2];
+
+        // flip id to positive in destination
+        amrex::ParticleIDWrapper{dst.m_idcpu[dst_i]}.make_valid();
     }
 };
 
@@ -384,7 +390,15 @@ void ParticleBoundaryBuffer::gatherParticlesFromDomainBoundaries (MultiParticleC
                     buffer[i].AddRealComp("ny", false);
                     buffer[i].AddRealComp("nz", false);
                 }
+
                 auto& species_buffer = buffer[i];
+                for (int lev = 0; lev < pc.numLevels(); ++lev){
+                    for(PIter pti(pc, lev); pti.isValid(); ++pti){
+                        species_buffer.DefineAndReturnParticleTile(
+                            lev, pti.index(), pti.LocalTileIndex());
+                    }
+                }
+
                 for (int lev = 0; lev < pc.numLevels(); ++lev)
                 {
                     const auto& plevel = pc.GetParticles(lev);
@@ -468,7 +482,15 @@ void ParticleBoundaryBuffer::gatherParticlesFromEmbeddedBoundaries (
             buffer[i].AddRealComp("nz", false);
 
         }
+
         auto& species_buffer = buffer[i];
+        for (int lev = 0; lev < pc.numLevels(); ++lev){
+            for(PIter pti(pc, lev); pti.isValid(); ++pti){
+                species_buffer.DefineAndReturnParticleTile(
+                    lev, pti.index(), pti.LocalTileIndex());
+            }
+        }
+
         for (int lev = 0; lev < pc.numLevels(); ++lev)
         {
             const auto& plevel = pc.GetParticles(lev);
