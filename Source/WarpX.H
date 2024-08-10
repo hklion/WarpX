@@ -363,31 +363,6 @@ public:
     static int n_field_gather_buffer;
     static amrex::IntVect n_field_gather_buffer_each_dir;
 
-    /**
-     * If true, particles located inside refinement patch but within
-     *  #n_field_gather_buffer cells of the patch edge will gather fields
-     * that are a weighted sum of the fields from lower refinement
-     * level and the refinement patch. By default, no interpolation will be done,
-     * and the fields will be gathered only from the lower refinement level.
-     * The option can be used to allow for a smooth transition from the fine
-     * and coarse solutions with a tanh profile, such that, the value
-     * of the gather fields is close to the solution on the refinement patch
-     * near the gather buffer edge, and close to the solution on the lower
-     * refinement level close to the edge of the patch.
-     * #tanh_midpoint_gather_buffer can be used to set the tanh profile
-     */
-    static bool do_fieldinterp_gather_buffer;
-
-    /**
-     * With mesh-refinement, finite number of gather buffer cells, and
-     * do_fieldinterp_gather_buffer, the particles on the fine patch
-     * gather a weighted sum of fields from fine patch and coarse patch.
-     * A tanh profile is used to set the smoothing kernel
-     * #tanh_midpoint_gather_buffer must be a fraction of the buffer width
-     * measured from coarsefine interface, where the tanh profile is 0.5
-     * The default value is 0.5
-     */
-    static amrex::Real tanh_midpoint_gather_buffer;
     //! With mesh refinement, particles located inside a refinement patch, but within
     //! #n_current_deposition_buffer cells of the edge of the patch, will deposit their charge
     //! and current onto the lower refinement level instead of the refinement patch itself
@@ -1130,9 +1105,6 @@ public:
     void BuildBufferMasksInBox ( amrex::Box tbx, amrex::IArrayBox &buffer_mask,
                                  const amrex::IArrayBox &guard_mask, const amrex::IntVect ng );
 
-    void SetWeightsInGatherBuffer(const amrex::Box tbx, amrex::Array4<amrex::Real> wtmsk,
-                                  const amrex::Array4<int const> gmsk, const amrex::Array4<int const> bmsk,
-                                  const int ngbuffer, const bool do_interpolate,amrex::Real tanh_midpoint);
 #ifdef AMREX_USE_EB
     amrex::EBFArrayBoxFactory const& fieldEBFactory (int lev) const noexcept {
         return static_cast<amrex::EBFArrayBoxFactory const&>(*m_field_factory[lev]);

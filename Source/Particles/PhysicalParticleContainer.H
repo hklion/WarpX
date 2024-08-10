@@ -320,28 +320,6 @@ public:
         amrex::FArrayBox const * & ez_ptr, amrex::FArrayBox const * & bx_ptr,
         amrex::FArrayBox const * & by_ptr, amrex::FArrayBox const * & bz_ptr);
 
-    void InterpolateFieldsInGatherBuffer (const amrex::Box& box,
-        amrex::FArrayBox& bufferEx, amrex::FArrayBox& bufferEy, amrex::FArrayBox& bufferEz,
-        amrex::FArrayBox& bufferBx, amrex::FArrayBox& bufferBy, amrex::FArrayBox& bufferBz,
-        amrex::Elixir& buf_exeli, amrex::Elixir& buf_eyeli, amrex::Elixir& buf_ezeli,
-        amrex::Elixir& buf_bxeli, amrex::Elixir& buf_byeli, amrex::Elixir& buf_bzeli,
-        amrex::FArrayBox const *& ex_ptr, amrex::FArrayBox const *& ey_ptr, amrex::FArrayBox const* & ez_ptr,
-        amrex::FArrayBox const *& bx_ptr, amrex::FArrayBox const *& by_ptr, amrex::FArrayBox const* & bz_ptr,
-        amrex::FArrayBox const *& cex_ptr, amrex::FArrayBox const *& cey_ptr, amrex::FArrayBox const* & cez_ptr,
-        amrex::FArrayBox const *& cbx_ptr, amrex::FArrayBox const *& cby_ptr, amrex::FArrayBox const* & cbz_ptr,
-        const amrex::IArrayBox& gather_mask, const amrex::FArrayBox& weight_gbuffer,
-        const amrex::IntVect ref_ratio);
-
-    void WeightedSumInGatherBuffer (const amrex::Box& tmp_xbox, const amrex::Box& tmp_ybox, const amrex::Box& tmp_zbox,
-                      amrex::Array4<amrex::Real> const & xbuf_field_arr, amrex::Array4<amrex::Real> const& ybuf_field_arr,
-                      amrex::Array4<amrex::Real> const & zbuf_field_arr,
-                      amrex::Array4<const amrex::Real> cfx_arr, amrex::Array4<const amrex::Real> cfy_arr,
-                      amrex::Array4<const amrex::Real> cfz_arr,
-                      amrex::Array4<const amrex::Real> fx_arr, amrex::Array4<const amrex::Real> fy_arr,
-                      amrex::Array4<const amrex::Real> fz_arr,
-                      amrex::Array4<const int > gm_arr, amrex::Array4<const amrex::Real> wt_arr,
-                      const amrex::IntVect ref_ratio);
-
     /**
     * \brief This function determines if resampling should be done for the current species, and
     * if so, performs the resampling.
