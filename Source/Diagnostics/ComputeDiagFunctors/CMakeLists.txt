@@ -6,12 +6,14 @@ foreach(D IN LISTS WarpX_DIMS)
         DivBFunctor.cpp
         DivEFunctor.cpp
         JFunctor.cpp
+        JdispFunctor.cpp
         RhoFunctor.cpp
         PartPerCellFunctor.cpp
         PartPerGridFunctor.cpp
         BackTransformFunctor.cpp
         BackTransformParticleFunctor.cpp
         ParticleReductionFunctor.cpp
+        TemperatureFunctor.cpp
         ProcessorMapFunctor.cpp
     )
 endforeach()
