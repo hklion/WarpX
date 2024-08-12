@@ -927,7 +927,7 @@ WarpX::ReadParameters ()
         utils::parser::queryWithParser(
             pp_warpx, "n_field_gather_buffer", n_field_gather_buffer);
         amrex::Vector<int> nfieldgatherbuffer_eachdir(AMREX_SPACEDIM,n_field_gather_buffer);
-        utils::parser::queryArrWithParser( 
+        utils::parser::queryArrWithParser(
             pp_warpx, "n_field_gather_buffer_each_dir", nfieldgatherbuffer_eachdir, 0, AMREX_SPACEDIM);
         for (int i = 0; i < AMREX_SPACEDIM; ++i) {
             n_field_gather_buffer_each_dir[i] = nfieldgatherbuffer_eachdir[i];
@@ -935,7 +935,7 @@ WarpX::ReadParameters ()
         utils::parser::queryWithParser(
             pp_warpx, "n_current_deposition_buffer", n_current_deposition_buffer);
         amrex::Vector<int> ncurrentdepositionbuffer_eachdir(AMREX_SPACEDIM,n_current_deposition_buffer);
-        utils::parser::queryArrWithParser( 
+        utils::parser::queryArrWithParser(
             pp_warpx, "n_current_deposition_buffer_each_dir",
             ncurrentdepositionbuffer_eachdir, 0, AMREX_SPACEDIM);
         for (int i = 0; i < AMREX_SPACEDIM; ++i) {
