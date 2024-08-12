@@ -2246,7 +2246,16 @@ WarpX::AllocLevelData (int lev, const BoxArray& ba, const DistributionMapping& d
         // Field gather buffer should be larger than current deposition buffers
         n_field_gather_buffer = n_current_deposition_buffer + 1;
     }
-
+    for (int i = 0; i < AMREX_SPACEDIM; ++i) {
+        if (n_current_deposition_buffer_each_dir[i] < 0) {
+            n_current_deposition_buffer_each_dir[i] = guard_cells.ng_alloc_J.max();
+        }
+    }
+    for (int i = 0; i < AMREX_SPACEDIM; ++i) {
+        if (n_field_gather_buffer_each_dir[i] < 0) {
+            n_field_gather_buffer_each_dir[i] = n_current_deposition_buffer + 1;
+        }
+    }
     AllocLevelMFs(lev, ba, dm, guard_cells.ng_alloc_EB, guard_cells.ng_alloc_J,
                   guard_cells.ng_alloc_Rho, guard_cells.ng_alloc_F, guard_cells.ng_alloc_G, aux_is_nodal);
 
