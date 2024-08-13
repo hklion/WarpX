@@ -402,7 +402,7 @@ WarpX::WarpX ()
     gather_buffer_masks.resize(nlevs_max);
     current_buf.resize(nlevs_max);
     charge_buf.resize(nlevs_max);
-    interp_weight_gbuffer.resize(nlevs_max);
+//    interp_weight_gbuffer.resize(nlevs_max);
 
     pml.resize(nlevs_max);
 #if (defined WARPX_DIM_RZ) && (defined WARPX_USE_FFT)
@@ -2160,7 +2160,7 @@ WarpX::ClearLevel (int lev)
 
     current_buffer_masks[lev].reset();
     gather_buffer_masks[lev].reset();
-    interp_weight_gbuffer[lev].reset();
+//    interp_weight_gbuffer[lev].reset();
 
     F_fp  [lev].reset();
     G_fp  [lev].reset();
@@ -2253,7 +2253,7 @@ WarpX::AllocLevelData (int lev, const BoxArray& ba, const DistributionMapping& d
     }
     for (int i = 0; i < AMREX_SPACEDIM; ++i) {
         if (n_field_gather_buffer_each_dir[i] < 0) {
-            n_field_gather_buffer_each_dir[i] = n_current_deposition_buffer + 1;
+            n_field_gather_buffer_each_dir[i] = n_current_deposition_buffer_each_dir[i] + 1;
         }
     }
     AllocLevelMFs(lev, ba, dm, guard_cells.ng_alloc_EB, guard_cells.ng_alloc_J,
@@ -2799,14 +2799,14 @@ WarpX::AllocLevelMFs (int lev, const BoxArray& ba, const DistributionMapping& dm
     //
     // Copy of the coarse aux
     //
-    if (lev > 0 && (n_field_gather_buffer_each_dir.max() > 0 ||
-                    n_current_deposition_buffer_each_dir.max() > 0 ||
+    if (lev > 0 && (n_field_gather_buffer > 0 ||
+                    n_current_deposition_buffer > 0 ||
                     mypc->nSpeciesGatherFromMainGrid() > 0))
     {
         BoxArray cba = ba;
         cba.coarsen(refRatio(lev-1));
 
-        if (n_field_gather_buffer_each_dir.max() > 0 || mypc->nSpeciesGatherFromMainGrid() > 0) {
+        if (n_field_gather_buffer > 0 || mypc->nSpeciesGatherFromMainGrid() > 0) {
             if (aux_is_nodal) {
                 BoxArray const& cnba = amrex::convert(cba,IntVect::TheNodeVector());
                 AllocInitMultiFab(Bfield_cax[lev][0], cnba,dm,ncomps,ngEB,lev, "Bfield_cax[x]", 0.0_rt);
@@ -2830,10 +2830,10 @@ WarpX::AllocLevelMFs (int lev, const BoxArray& ba, const DistributionMapping& dm
             // Gather buffer masks have 1 ghost cell, because of the fact
             // that particles may move by more than one cell when using subcycling.
             AllocInitMultiFab(gather_buffer_masks[lev], ba, dm, ncomps, amrex::IntVect(1), lev, "gather_buffer_masks");
-            AllocInitMultiFab(interp_weight_gbuffer[lev], amrex::convert(ba, IntVect::TheNodeVector()), dm, ncomps, ngEB, lev, "interp_weight_gbuffer", 0.0_rt);
+//            AllocInitMultiFab(interp_weight_gbuffer[lev], amrex::convert(ba, IntVect::TheNodeVector()), dm, ncomps, ngEB, lev, "interp_weight_gbuffer", 0.0_rt);
         }
 
-        if (n_current_deposition_buffer_each_dir.max() > 0) {
+        if (n_current_deposition_buffer > 0) {
             amrex::Print() << " current dep buffer : " << n_current_deposition_buffer << "\n";
             AllocInitMultiFab(current_buf[lev][0], amrex::convert(cba,jx_nodal_flag),dm,ncomps,ngJ,lev, "current_buf[x]");
             AllocInitMultiFab(current_buf[lev][1], amrex::convert(cba,jy_nodal_flag),dm,ncomps,ngJ,lev, "current_buf[y]");
@@ -3215,9 +3215,7 @@ WarpX::BuildBufferMasks ()
     {
         for (int ipass = 0; ipass < 2; ++ipass)
         {
-            //const int ngbuffer = (ipass == 0) ? n_current_deposition_buffer : n_field_gather_buffer;
-            const amrex::IntVect ngbuffer = (ipass == 0) ? n_current_deposition_buffer_each_dir
-                                                         : n_field_gather_buffer_each_dir;
+            const int ngbuffer = (ipass == 0) ? n_current_deposition_buffer : n_field_gather_buffer;
             iMultiFab* bmasks = (ipass == 0) ? current_buffer_masks[lev].get() : gather_buffer_masks[lev].get();
             if (bmasks)
             {
@@ -3253,11 +3251,11 @@ WarpX::BuildBufferMasks ()
  */
 void
 WarpX::BuildBufferMasksInBox ( const amrex::Box tbx, amrex::IArrayBox &buffer_mask,
-                               const amrex::IArrayBox &guard_mask, const amrex::IntVect ng )
+                               const amrex::IArrayBox &guard_mask, const int ng )
 {
     auto const& msk = buffer_mask.array();
     auto const& gmsk = guard_mask.const_array();
-    const amrex::Dim3 ng3 = ng.dim3();
+    const amrex::Dim3 ng3 = amrex::IntVect(ng).dim3();
     amrex::ParallelFor(tbx, [=] AMREX_GPU_DEVICE (int i, int j, int k)
     {
         for         (int kk = k-ng3.z; kk <= k+ng3.z; ++kk) {

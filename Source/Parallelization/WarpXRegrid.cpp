@@ -465,7 +465,7 @@ WarpX::RemakeLevel (int lev, Real /*time*/, const BoxArray& ba, const Distributi
 #endif
         }
 
-        if (lev > 0 && (n_field_gather_buffer_each_dir.max() > 0 || n_current_deposition_buffer_each_dir.max() > 0)) {
+        if (lev > 0 && (n_field_gather_buffer > 0 || n_current_deposition_buffer > 0)) {
             for (int idim=0; idim < 3; ++idim)
             {
                 RemakeMultiFab(Bfield_cax[lev][idim], false);

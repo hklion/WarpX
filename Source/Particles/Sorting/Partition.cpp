@@ -67,7 +67,7 @@ PhysicalParticleContainer::PartitionParticlesInBuffers(
 
     // - Select the larger buffer
     iMultiFab const* bmasks =
-        (WarpX::n_field_gather_buffer_each_dir.max() >= WarpX::n_current_deposition_buffer_each_dir.max()) ?
+        (WarpX::n_field_gather_buffer >= WarpX::n_current_deposition_buffer) ?
         gather_masks : current_masks;
     // - For each particle, find whether it is in the larger buffer,
     //   by looking up the mask. Store the answer in `inexflag`.
@@ -86,7 +86,7 @@ PhysicalParticleContainer::PartitionParticlesInBuffers(
     // Second, among particles that are in the larger buffer, partition
     // particles into the smaller buffer
 
-    if (WarpX::n_current_deposition_buffer_each_dir.max() == WarpX::n_field_gather_buffer_each_dir.max()) {
+    if (WarpX::n_current_deposition_buffer == WarpX::n_field_gather_buffer ) {
         // No need to do anything if the buffers have the same size
         nfine_current = nfine_gather = iteratorDistance(pid.begin(), sep);
     } else if (sep == pid.end()) {
@@ -97,11 +97,11 @@ PhysicalParticleContainer::PartitionParticlesInBuffers(
         if (bmasks == gather_masks) {
             nfine_gather = n_fine;
             bmasks = current_masks;
-            n_buf = WarpX::n_current_deposition_buffer_each_dir.max();
+            n_buf = WarpX::n_current_deposition_buffer;
         } else {
             nfine_current = n_fine;
             bmasks = gather_masks;
-            n_buf = WarpX::n_field_gather_buffer_each_dir.max();
+            n_buf = WarpX::n_field_gather_buffer;
         }
         if (n_buf > 0)
         {

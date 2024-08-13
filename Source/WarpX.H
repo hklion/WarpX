@@ -914,10 +914,10 @@ public:
     static amrex::XDim3 InvCellSize (int lev);
     static amrex::RealBox getRealBox(const amrex::Box& bx, int lev);
 
-    [[nodiscard]] const amrex::MultiFab* getInterpWeightGBuffer (int lev) const
-    {
-        return interp_weight_gbuffer[lev].get();
-    }
+//    [[nodiscard]] const amrex::MultiFab* getInterpWeightGBuffer (int lev) const
+//    {
+//        return interp_weight_gbuffer[lev].get();
+//    }
     /**
      * \brief Return the lower corner of the box in real units.
      * \param bx The box
@@ -1126,7 +1126,7 @@ public:
 
     // for cuda
     void BuildBufferMasksInBox ( amrex::Box tbx, amrex::IArrayBox &buffer_mask,
-                                 const amrex::IArrayBox &guard_mask, const amrex::IntVect ng );
+                                 const amrex::IArrayBox &guard_mask, const int ng );
 
 #ifdef AMREX_USE_EB
     amrex::EBFArrayBoxFactory const& fieldEBFactory (int lev) const noexcept {
@@ -1602,11 +1602,11 @@ private:
     amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>, 3 > > Bfield_cax;
     amrex::Vector<std::unique_ptr<amrex::iMultiFab> > current_buffer_masks;
     amrex::Vector<std::unique_ptr<amrex::iMultiFab> > gather_buffer_masks;
-    /** Multifab that stores weights for interpolating fine and coarse solutions
-     *  in the buffer gather region, such that, the weight for fine solution is
-     *  0 near the coarse-fine interface, and 1 as the buffer gather region terminates in the fine patch
-     */
-    amrex::Vector<std::unique_ptr<amrex::MultiFab> > interp_weight_gbuffer;
+//    /** Multifab that stores weights for interpolating fine and coarse solutions
+//     *  in the buffer gather region, such that, the weight for fine solution is
+//     *  0 near the coarse-fine interface, and 1 as the buffer gather region terminates in the fine patch
+//     */
+//    amrex::Vector<std::unique_ptr<amrex::MultiFab> > interp_weight_gbuffer;
 
     // If charge/current deposition buffers are used
     amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > current_buf;
