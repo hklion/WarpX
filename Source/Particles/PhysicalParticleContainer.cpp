@@ -991,6 +991,8 @@ PhysicalParticleContainer::AddPlasma (PlasmaInjector const& plasma_injector, int
     }
     bool refineplasma = false;
     amrex::ParticleLocator<amrex::DenseBins<amrex::Box> > refinepatch_locator;
+    amrex::ParticleLocator<amrex::DenseBins<amrex::Box> > parent_locator;
+    parent_locator.build(ParticleBoxArray(0),Geom(0));
     if (WarpX::refineAddplasma)
     {
         refineplasma = true;
@@ -1003,7 +1005,8 @@ PhysicalParticleContainer::AddPlasma (PlasmaInjector const& plasma_injector, int
         }
         refinepatch_locator.setGeometry(Geom(0));
     }
-    auto assignpartgrid = refinepatch_locator.getGridAssignor();
+    auto assignpartgrid = (WarpX::refineAddplasma) ? refinepatch_locator.getGridAssignor()
+                                                   : parent_locator.getGridAssignor();
         // if assign_grid(ijk_vec) > 0, then we are in refinement patch. therefore refine plasma particles
         // else, usual num_part
 
@@ -1115,7 +1118,10 @@ PhysicalParticleContainer::AddPlasma (PlasmaInjector const& plasma_injector, int
             {
                 auto index = overlap_box.index(iv);
                 amrex::IntVect glo_iv = iv + tile_box.smallEnd();
-                bool in_refpatch = ( assignpartgrid(glo_iv) < 0 ) ? false : true;
+                bool in_refpatch = false;
+                if ( !(assignpartgrid(glo_iv)<0) && refineplasma) {
+                    in_refpatch = true;
+                }
                 const amrex::Long r = ( (fine_overlap_box.ok() && fine_overlap_box.contains(iv)) || (refineplasma && in_refpatch) ) ?
                     (AMREX_D_TERM(lrrfac[0],*lrrfac[1],*lrrfac[2])) : (1);
                 pcounts[index] = num_ppc*r;
@@ -1274,7 +1280,10 @@ PhysicalParticleContainer::AddPlasma (PlasmaInjector const& plasma_injector, int
             const IntVect iv = IntVect(AMREX_D_DECL(i, j, k));
             const auto index = overlap_box.index(iv);
             amrex::IntVect glo_iv = iv + tile_box.smallEnd();
-            bool in_refpatch = ( assignpartgrid(glo_iv) < 0 ) ? false : true;
+            bool in_refpatch = false;
+            if ( !(assignpartgrid(glo_iv)<0) && refineplasma) {
+                in_refpatch = true;
+            }
 #ifdef WARPX_DIM_RZ
             Real theta_offset = 0._rt;
             if (rz_random_theta) { theta_offset = amrex::Random(engine) * 2._rt * MathConst::pi; }

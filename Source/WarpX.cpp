@@ -919,7 +919,7 @@ WarpX::ReadParameters ()
             }
             amrex::Print() << "\n";
         } else {
-            AddplasmaRefRatio = RefRatio(0);
+            if (maxLevel() > 0) AddplasmaRefRatio = RefRatio(0);
         }
 
         pp_warpx.query("do_dive_cleaning", do_dive_cleaning);
