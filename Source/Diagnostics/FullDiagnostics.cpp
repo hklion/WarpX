@@ -10,6 +10,7 @@
 #include "ComputeDiagFunctors/ParticleReductionFunctor.H"
 #include "ComputeDiagFunctors/TemperatureFunctor.H"
 #include "ComputeDiagFunctors/RhoFunctor.H"
+#include "ComputeDiagFunctors/ProcessorMapFunctor.H"
 #include "Diagnostics/Diagnostics.H"
 #include "Diagnostics/ParticleDiag/ParticleDiag.H"
 #include "FieldSolver/Fields.H"
@@ -697,6 +698,8 @@ FullDiagnostics::InitializeFieldFunctors (int lev)
             m_all_field_functors[lev][comp] = std::make_unique<DivBFunctor>(warpx.getFieldPointerArray(FieldType::Bfield_aux, lev), lev, m_crse_ratio);
         } else if ( m_varnames[comp] == "divE" ){
             m_all_field_functors[lev][comp] = std::make_unique<DivEFunctor>(warpx.getFieldPointerArray(FieldType::Efield_aux, lev), lev, m_crse_ratio);
+        } else if ( m_varnames[comp] == "proc_number" ){
+            m_all_field_functors[lev][comp] = std::make_unique<ProcessorMapFunctor>(warpx.getFieldPointer(FieldType::Efield_aux, lev, 0), lev, m_crse_ratio);
         }
         else {
 

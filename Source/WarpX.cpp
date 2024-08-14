@@ -128,6 +128,8 @@ int WarpX::macroscopic_solver_algo;
 bool WarpX::do_single_precision_comms = false;
 bool WarpX::do_subcycle_current = false;
 int WarpX::n_subcycle_current = 1;
+bool WarpX::do_abc_in_pml = false;
+int WarpX::load_balance_startlevel = 0;
 
 bool WarpX::do_shared_mem_charge_deposition = false;
 bool WarpX::do_shared_mem_current_deposition = false;
@@ -175,6 +177,8 @@ bool WarpX::use_filter_compensation = false;
 
 bool WarpX::serialize_initial_conditions = false;
 bool WarpX::refine_plasma     = false;
+bool WarpX::refineAddplasma   = false;
+amrex::IntVect WarpX::AddplasmaRefRatio(AMREX_D_DECL(1,1,1));
 
 int WarpX::num_mirrors = 0;
 
@@ -208,6 +212,8 @@ std::map<std::string, amrex::iMultiFab *> WarpX::imultifab_map;
 
 IntVect WarpX::filter_npass_each_dir(1);
 
+amrex::IntVect WarpX::n_field_gather_buffer_each_dir(-1);
+amrex::IntVect WarpX::n_current_deposition_buffer_each_dir(-1);
 int WarpX::n_field_gather_buffer = -1;
 int WarpX::n_current_deposition_buffer = -1;
 
@@ -396,6 +402,7 @@ WarpX::WarpX ()
     gather_buffer_masks.resize(nlevs_max);
     current_buf.resize(nlevs_max);
     charge_buf.resize(nlevs_max);
+//    interp_weight_gbuffer.resize(nlevs_max);
 
     pml.resize(nlevs_max);
 #if (defined WARPX_DIM_RZ) && (defined WARPX_USE_FFT)
@@ -898,12 +905,42 @@ WarpX::ReadParameters ()
 
         pp_warpx.query("serialize_initial_conditions", serialize_initial_conditions);
         pp_warpx.query("refine_plasma", refine_plasma);
+        pp_warpx.query("refineAddplasma", refineAddplasma);
+        amrex::Vector<int> addplasma_ref_ratio(AMREX_SPACEDIM,1);
+        const bool addplasma_ref_ratio_specified =
+            utils::parser::queryArrWithParser(
+                pp_warpx, "refineplasma_refratio",
+                addplasma_ref_ratio, 0, AMREX_SPACEDIM);
+        if (addplasma_ref_ratio_specified){
+            amrex::Print() << " refratio for addplasma is : ";
+            for (int i=0; i<AMREX_SPACEDIM; i++) {
+                AddplasmaRefRatio[i] = addplasma_ref_ratio[i];
+                amrex::Print() << " " << AddplasmaRefRatio[i];
+            }
+            amrex::Print() << "\n";
+        } else {
+            if (maxLevel() > 0) AddplasmaRefRatio = RefRatio(0);
+        }
+
         pp_warpx.query("do_dive_cleaning", do_dive_cleaning);
         pp_warpx.query("do_divb_cleaning", do_divb_cleaning);
         utils::parser::queryWithParser(
             pp_warpx, "n_field_gather_buffer", n_field_gather_buffer);
+        amrex::Vector<int> nfieldgatherbuffer_eachdir(AMREX_SPACEDIM,n_field_gather_buffer);
+        utils::parser::queryArrWithParser(
+            pp_warpx, "n_field_gather_buffer_each_dir", nfieldgatherbuffer_eachdir, 0, AMREX_SPACEDIM);
+        for (int i = 0; i < AMREX_SPACEDIM; ++i) {
+            n_field_gather_buffer_each_dir[i] = nfieldgatherbuffer_eachdir[i];
+        }
         utils::parser::queryWithParser(
             pp_warpx, "n_current_deposition_buffer", n_current_deposition_buffer);
+        amrex::Vector<int> ncurrentdepositionbuffer_eachdir(AMREX_SPACEDIM,n_current_deposition_buffer);
+        utils::parser::queryArrWithParser(
+            pp_warpx, "n_current_deposition_buffer_each_dir",
+            ncurrentdepositionbuffer_eachdir, 0, AMREX_SPACEDIM);
+        for (int i = 0; i < AMREX_SPACEDIM; ++i) {
+            n_current_deposition_buffer_each_dir[i] = ncurrentdepositionbuffer_eachdir[i];
+        }
 
         amrex::Real quantum_xi_tmp;
         const auto quantum_xi_is_specified =
@@ -944,6 +981,9 @@ WarpX::ReadParameters ()
         pp_warpx.query("do_pml_j_damping", do_pml_j_damping);
         pp_warpx.query("do_pml_in_domain", do_pml_in_domain);
         pp_warpx.query("do_similar_dm_pml", do_similar_dm_pml);
+        pp_warpx.query("do_cubic_sigma_pml",do_cubic_sigma_pml);
+        pp_warpx.query("pml_damping_strength",pml_damping_strength);
+        pp_warpx.query("do_abc_in_pml",do_abc_in_pml);
         // Read `v_particle_pml` in units of the speed of light
         v_particle_pml = 1._rt;
         utils::parser::queryWithParser(pp_warpx, "v_particle_pml", v_particle_pml);
@@ -1362,6 +1402,9 @@ WarpX::ReadParameters ()
         load_balance_intervals = utils::parser::IntervalsParser(
             load_balance_intervals_string_vec);
         pp_algo.query("load_balance_with_sfc", load_balance_with_sfc);
+        pp_algo.query("do_similar_dm_refpatch", do_similar_dm_refpatch);
+        pp_algo.query("do_SFC_dm_vectorlevel",do_SFC_dm_vectorlevel);
+    pp_algo.query("load_balance_startlevel",load_balance_startlevel);
         // Knapsack factor only used with non-SFC strategy
         if (!load_balance_with_sfc) {
             pp_algo.query("load_balance_knapsack_factor", load_balance_knapsack_factor);
@@ -2117,6 +2160,7 @@ WarpX::ClearLevel (int lev)
 
     current_buffer_masks[lev].reset();
     gather_buffer_masks[lev].reset();
+//    interp_weight_gbuffer[lev].reset();
 
     F_fp  [lev].reset();
     G_fp  [lev].reset();
@@ -2202,7 +2246,16 @@ WarpX::AllocLevelData (int lev, const BoxArray& ba, const DistributionMapping& d
         // Field gather buffer should be larger than current deposition buffers
         n_field_gather_buffer = n_current_deposition_buffer + 1;
     }
-
+    for (int i = 0; i < AMREX_SPACEDIM; ++i) {
+        if (n_current_deposition_buffer_each_dir[i] < 0) {
+            n_current_deposition_buffer_each_dir[i] = guard_cells.ng_alloc_J.max();
+        }
+    }
+    for (int i = 0; i < AMREX_SPACEDIM; ++i) {
+        if (n_field_gather_buffer_each_dir[i] < 0) {
+            n_field_gather_buffer_each_dir[i] = n_current_deposition_buffer_each_dir[i] + 1;
+        }
+    }
     AllocLevelMFs(lev, ba, dm, guard_cells.ng_alloc_EB, guard_cells.ng_alloc_J,
                   guard_cells.ng_alloc_Rho, guard_cells.ng_alloc_F, guard_cells.ng_alloc_G, aux_is_nodal);
 
@@ -2746,7 +2799,8 @@ WarpX::AllocLevelMFs (int lev, const BoxArray& ba, const DistributionMapping& dm
     //
     // Copy of the coarse aux
     //
-    if (lev > 0 && (n_field_gather_buffer > 0 || n_current_deposition_buffer > 0 ||
+    if (lev > 0 && (n_field_gather_buffer > 0 ||
+                    n_current_deposition_buffer > 0 ||
                     mypc->nSpeciesGatherFromMainGrid() > 0))
     {
         BoxArray cba = ba;
@@ -2772,20 +2826,23 @@ WarpX::AllocLevelMFs (int lev, const BoxArray& ba, const DistributionMapping& dm
                 AllocInitMultiFab(Efield_cax[lev][1], amrex::convert(cba,Ey_nodal_flag),dm,ncomps,ngEB,lev, "Efield_cax[y]", 0.0_rt);
                 AllocInitMultiFab(Efield_cax[lev][2], amrex::convert(cba,Ez_nodal_flag),dm,ncomps,ngEB,lev, "Efield_cax[z]", 0.0_rt);
             }
-
-            AllocInitMultiFab(gather_buffer_masks[lev], ba, dm, ncomps, amrex::IntVect(1), lev, "gather_buffer_masks");
+            amrex::Print() << " ba for allocating gahter buffer mask " << "\n";
             // Gather buffer masks have 1 ghost cell, because of the fact
             // that particles may move by more than one cell when using subcycling.
+            AllocInitMultiFab(gather_buffer_masks[lev], ba, dm, ncomps, amrex::IntVect(1), lev, "gather_buffer_masks");
+//            AllocInitMultiFab(interp_weight_gbuffer[lev], amrex::convert(ba, IntVect::TheNodeVector()), dm, ncomps, ngEB, lev, "interp_weight_gbuffer", 0.0_rt);
         }
 
         if (n_current_deposition_buffer > 0) {
+            amrex::Print() << " current dep buffer : " << n_current_deposition_buffer << "\n";
             AllocInitMultiFab(current_buf[lev][0], amrex::convert(cba,jx_nodal_flag),dm,ncomps,ngJ,lev, "current_buf[x]");
             AllocInitMultiFab(current_buf[lev][1], amrex::convert(cba,jy_nodal_flag),dm,ncomps,ngJ,lev, "current_buf[y]");
             AllocInitMultiFab(current_buf[lev][2], amrex::convert(cba,jz_nodal_flag),dm,ncomps,ngJ,lev, "current_buf[z]");
             if (rho_cp[lev]) {
                 AllocInitMultiFab(charge_buf[lev], amrex::convert(cba,rho_nodal_flag),dm,2*ncomps,ngRho,lev, "charge_buf");
             }
-            AllocInitMultiFab(current_buffer_masks[lev], ba, dm, ncomps, amrex::IntVect(1), lev, "current_buffer_masks");
+            amrex::Print() << " allocate current buffer mask \n";
+            AllocInitMultiFab(current_buffer_masks[lev], ba, dm, ncomps, ngJ, lev, "current_buffer_masks");
             // Current buffer masks have 1 ghost cell, because of the fact
             // that particles may move by more than one cell when using subcycling.
         }

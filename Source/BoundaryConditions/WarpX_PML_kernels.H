@@ -24,11 +24,11 @@ void warpx_damp_pml_ex (int i, int j, int k, amrex::Array4<amrex::Real> const& E
                         const amrex::Real* const sigma_star_fac_y,
                         const amrex::Real* const sigma_star_fac_z,
                         int xlo, int ylo, int zlo,
-                        const bool dive_cleaning)
+                        const bool dive_cleaning, const bool abc_in_pml)
 {
 #if defined(WARPX_DIM_1D_Z)
     amrex::ignore_unused(i, j, k, Ex, Ex_stag, sigma_fac_x, sigma_fac_y, sigma_fac_z,
-           sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, xlo, ylo, zlo, dive_cleaning);
+           sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, xlo, ylo, zlo, dive_cleaning, abc_in_pml);
     amrex::Abort("PML not implemented in Cartesian 1D geometry");
 #endif
 
@@ -53,8 +53,14 @@ void warpx_damp_pml_ex (int i, int j, int k, amrex::Array4<amrex::Real> const& E
     // Exz
     if (sz == 0) {
         Ex(i,j,k,PMLComp::xz) *= sigma_star_fac_z[j-zlo];
+        if (abc_in_pml) {
+            Ex(i,j,k,PMLComp::xy) *= sigma_star_fac_z[j-zlo];
+        }
     } else {
         Ex(i,j,k,PMLComp::xz) *= sigma_fac_z[j-zlo];
+        if (abc_in_pml) {
+            Ex(i,j,k,PMLComp::xy) *= sigma_fac_z[j-zlo];
+        }
     }
 
 #elif defined(WARPX_DIM_3D)
@@ -77,15 +83,27 @@ void warpx_damp_pml_ex (int i, int j, int k, amrex::Array4<amrex::Real> const& E
     // Exy
     if (sy == 0) {
         Ex(i,j,k,PMLComp::xy) *= sigma_star_fac_y[j-ylo];
+        if (abc_in_pml) {
+            Ex(i,j,k,PMLComp::xz) *= sigma_star_fac_y[j-ylo];
+        }
     } else {
         Ex(i,j,k,PMLComp::xy) *= sigma_fac_y[j-ylo];
+        if (abc_in_pml) {
+            Ex(i,j,k,PMLComp::xz) *= sigma_fac_y[j-ylo];
+        }
     }
 
     // Exz
     if (sz == 0) {
         Ex(i,j,k,PMLComp::xz) *= sigma_star_fac_z[k-zlo];
+        if (abc_in_pml) {
+            Ex(i,j,k,PMLComp::xy) *= sigma_star_fac_z[k-zlo];
+        }
     } else {
         Ex(i,j,k,PMLComp::xz) *= sigma_fac_z[k-zlo];
+        if (abc_in_pml) {
+            Ex(i,j,k,PMLComp::xy) *= sigma_fac_z[k-zlo];
+        }
     }
 
 #endif
@@ -101,17 +119,17 @@ void warpx_damp_pml_ey (int i, int j, int k, amrex::Array4<amrex::Real> const& E
                         const amrex::Real* const sigma_star_fac_y,
                         const amrex::Real* const sigma_star_fac_z,
                         int xlo, int ylo, int zlo,
-                        const bool dive_cleaning)
+                        const bool dive_cleaning, const bool abc_in_pml)
 {
 #if defined(WARPX_DIM_1D_Z)
     amrex::ignore_unused(i, j, k, Ey, Ey_stag, sigma_fac_x, sigma_fac_y, sigma_fac_z,
-           sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, xlo, ylo, zlo, dive_cleaning);
+           sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, xlo, ylo, zlo, dive_cleaning, abc_in_pml);
     amrex::Abort("PML not implemented in Cartesian 1D geometry");
 #endif
 
 #if defined(WARPX_DIM_XZ) || defined(WARPX_DIM_RZ)
 
-    amrex::ignore_unused(sigma_fac_y, sigma_star_fac_y, ylo, dive_cleaning);
+    amrex::ignore_unused(sigma_fac_y, sigma_star_fac_y, ylo, dive_cleaning, abc_in_pml);
 
     // sx = 0 means that Ey is staggered in x, while sx = 1 means that Ey is nodal in x (same for z)
     const int sx = Ey_stag[0];
@@ -120,15 +138,27 @@ void warpx_damp_pml_ey (int i, int j, int k, amrex::Array4<amrex::Real> const& E
     // Eyx
     if (sx == 0) {
         Ey(i,j,k,PMLComp::yx) *= sigma_star_fac_x[i-xlo];
+        if (abc_in_pml) {
+            Ey(i,j,k,PMLComp::yz) *= sigma_star_fac_x[i-xlo];
+        }
     } else {
         Ey(i,j,k,PMLComp::yx) *= sigma_fac_x[i-xlo];
+        if (abc_in_pml) {
+            Ey(i,j,k,PMLComp::yz) *= sigma_fac_x[i-xlo];
+        }
     }
 
     // Eyz
     if (sz == 0) {
         Ey(i,j,k,PMLComp::yz) *= sigma_star_fac_z[j-zlo];
+        if (abc_in_pml) {
+            Ey(i,j,k,PMLComp::yx) *= sigma_star_fac_z[j-zlo];
+        }
     } else {
         Ey(i,j,k,PMLComp::yz) *= sigma_fac_z[j-zlo];
+        if (abc_in_pml) {
+            Ey(i,j,k,PMLComp::yx) *= sigma_fac_z[j-zlo];
+        }
     }
 
 #elif defined(WARPX_DIM_3D)
@@ -141,8 +171,14 @@ void warpx_damp_pml_ey (int i, int j, int k, amrex::Array4<amrex::Real> const& E
     // Eyx
     if (sx == 0) {
         Ey(i,j,k,PMLComp::yx) *= sigma_star_fac_x[i-xlo];
+        if (abc_in_pml) {
+            Ey(i,j,k,PMLComp::yz) *= sigma_star_fac_x[i-xlo];
+        }
     } else {
         Ey(i,j,k,PMLComp::yx) *= sigma_fac_x[i-xlo];
+        if (abc_in_pml) {
+            Ey(i,j,k,PMLComp::yz) *= sigma_fac_x[i-xlo];
+        }
     }
 
     if (dive_cleaning)
@@ -158,8 +194,14 @@ void warpx_damp_pml_ey (int i, int j, int k, amrex::Array4<amrex::Real> const& E
     // Eyz
     if (sz == 0) {
         Ey(i,j,k,PMLComp::yz) *= sigma_star_fac_z[k-zlo];
+        if (abc_in_pml) {
+            Ey(i,j,k,PMLComp::yx) *= sigma_star_fac_z[k-zlo];
+        }
     } else {
         Ey(i,j,k,PMLComp::yz) *= sigma_fac_z[k-zlo];
+        if (abc_in_pml) {
+            Ey(i,j,k,PMLComp::yx) *= sigma_fac_z[k-zlo];
+        }
     }
 
 #endif
@@ -175,11 +217,11 @@ void warpx_damp_pml_ez (int i, int j, int k, amrex::Array4<amrex::Real> const& E
                         const amrex::Real* const sigma_star_fac_y,
                         const amrex::Real* const sigma_star_fac_z,
                         int xlo, int ylo, int zlo,
-                        const bool dive_cleaning)
+                        const bool dive_cleaning, const bool abc_in_pml)
 {
 #if defined(WARPX_DIM_1D_Z)
     amrex::ignore_unused(i, j, k, Ez, Ez_stag, sigma_fac_x, sigma_fac_y, sigma_fac_z,
-           sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, xlo, ylo, zlo, dive_cleaning);
+           sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, xlo, ylo, zlo, dive_cleaning, abc_in_pml);
     amrex::Abort("PML not implemented in Cartesian 1D geometry");
 #endif
 
@@ -194,8 +236,14 @@ void warpx_damp_pml_ez (int i, int j, int k, amrex::Array4<amrex::Real> const& E
     // Ezx
     if (sx == 0) {
         Ez(i,j,k,PMLComp::zx) *= sigma_star_fac_x[i-xlo];
+        if (abc_in_pml) {
+            Ez(i,j,k,PMLComp::zy) *= sigma_star_fac_x[i-xlo];
+        }
     } else {
         Ez(i,j,k,PMLComp::zx) *= sigma_fac_x[i-xlo];
+        if (abc_in_pml) {
+            Ez(i,j,k,PMLComp::zy) *= sigma_fac_x[i-xlo];
+        }
     }
 
     if (dive_cleaning)
@@ -218,15 +266,27 @@ void warpx_damp_pml_ez (int i, int j, int k, amrex::Array4<amrex::Real> const& E
     // Ezx
     if (sx == 0) {
         Ez(i,j,k,PMLComp::zx) *= sigma_star_fac_x[i-xlo];
+        if (abc_in_pml) {
+            Ez(i,j,k,PMLComp::zy) *= sigma_star_fac_x[i-xlo];
+        }
     } else {
         Ez(i,j,k,PMLComp::zx) *= sigma_fac_x[i-xlo];
+        if (abc_in_pml) {
+            Ez(i,j,k,PMLComp::zy) *= sigma_fac_x[i-xlo];
+        }
     }
 
     // Ezy
     if (sy == 0) {
         Ez(i,j,k,PMLComp::zy) *= sigma_star_fac_y[j-ylo];
+        if (abc_in_pml) {
+            Ez(i,j,k,PMLComp::zx) *= sigma_star_fac_y[j-ylo];
+        }
     } else {
         Ez(i,j,k,PMLComp::zy) *= sigma_fac_y[j-ylo];
+        if (abc_in_pml) {
+            Ez(i,j,k,PMLComp::zx) *= sigma_fac_y[j-ylo];
+        }
     }
 
     if (dive_cleaning)
@@ -252,11 +312,11 @@ void warpx_damp_pml_bx (int i, int j, int k, amrex::Array4<amrex::Real> const& B
                         const amrex::Real* const sigma_star_fac_y,
                         const amrex::Real* const sigma_star_fac_z,
                         int xlo, int ylo, int zlo,
-                        const bool divb_cleaning)
+                        const bool divb_cleaning, const bool abc_in_pml)
 {
 #if defined(WARPX_DIM_1D_Z)
     amrex::ignore_unused(i, j, k, Bx, Bx_stag, sigma_fac_x, sigma_fac_y, sigma_fac_z,
-           sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, xlo, ylo, zlo, divb_cleaning);
+           sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, xlo, ylo, zlo, divb_cleaning, abc_in_pml);
     amrex::Abort("PML not implemented in Cartesian 1D geometry");
 #endif
 
@@ -281,8 +341,14 @@ void warpx_damp_pml_bx (int i, int j, int k, amrex::Array4<amrex::Real> const& B
     // Bxz
     if (sz == 0) {
         Bx(i,j,k,PMLComp::xz) *= sigma_star_fac_z[j-zlo];
+        if (abc_in_pml) {
+            Bx(i,j,k,PMLComp::xy) *= sigma_star_fac_z[j-zlo];
+        }
     } else {
         Bx(i,j,k,PMLComp::xz) *= sigma_fac_z[j-zlo];
+        if (abc_in_pml) {
+            Bx(i,j,k,PMLComp::xy) *= sigma_fac_z[j-zlo];
+        }
     }
 
 #elif defined(WARPX_DIM_3D)
@@ -305,15 +371,27 @@ void warpx_damp_pml_bx (int i, int j, int k, amrex::Array4<amrex::Real> const& B
     // Bxy
     if (sy == 0) {
         Bx(i,j,k,PMLComp::xy) *= sigma_star_fac_y[j-ylo];
+        if (abc_in_pml) {
+            Bx(i,j,k,PMLComp::xz) *= sigma_star_fac_y[j-ylo];
+        }
     } else {
         Bx(i,j,k,PMLComp::xy) *= sigma_fac_y[j-ylo];
+        if (abc_in_pml) {
+            Bx(i,j,k,PMLComp::xz) *= sigma_fac_y[j-ylo];
+        }
     }
 
     // Bxz
     if (sz == 0) {
         Bx(i,j,k,PMLComp::xz) *= sigma_star_fac_z[k-zlo];
+        if (abc_in_pml) {
+            Bx(i,j,k,PMLComp::xy) *= sigma_star_fac_z[k-zlo];
+        }
     } else {
         Bx(i,j,k,PMLComp::xz) *= sigma_fac_z[k-zlo];
+        if (abc_in_pml) {
+            Bx(i,j,k,PMLComp::xy) *= sigma_fac_z[k-zlo];
+        }
     }
 
 #endif
@@ -329,11 +407,11 @@ void warpx_damp_pml_by (int i, int j, int k, amrex::Array4<amrex::Real> const& B
                         const amrex::Real* const sigma_star_fac_y,
                         const amrex::Real* const sigma_star_fac_z,
                         int xlo, int ylo, int zlo,
-                        const bool divb_cleaning)
+                        const bool divb_cleaning, const bool abc_in_pml)
 {
 #if defined(WARPX_DIM_1D_Z)
     amrex::ignore_unused(i, j, k, By, By_stag, sigma_fac_x, sigma_fac_y, sigma_fac_z,
-           sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, xlo, ylo, zlo, divb_cleaning);
+           sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, xlo, ylo, zlo, divb_cleaning, abc_in_pml);
     amrex::Abort("PML not implemented in Cartesian 1D geometry");
 #endif
 
@@ -348,15 +426,27 @@ void warpx_damp_pml_by (int i, int j, int k, amrex::Array4<amrex::Real> const& B
     // Byx
     if (sx == 0) {
         By(i,j,k,PMLComp::yx) *= sigma_star_fac_x[i-xlo];
+        if (abc_in_pml) {
+            By(i,j,k,PMLComp::yz) *= sigma_star_fac_x[i-xlo];
+        }
     } else {
         By(i,j,k,PMLComp::yx) *= sigma_fac_x[i-xlo];
+        if (abc_in_pml) {
+            By(i,j,k,PMLComp::yz) *= sigma_fac_x[i-xlo];
+        }
     }
 
     // Byz
     if (sz == 0) {
         By(i,j,k,PMLComp::yz) *= sigma_star_fac_z[j-zlo];
+        if (abc_in_pml) {
+            By(i,j,k,PMLComp::yx) *= sigma_star_fac_z[j-zlo];
+        }
     } else {
         By(i,j,k,PMLComp::yz) *= sigma_fac_z[j-zlo];
+        if (abc_in_pml) {
+            By(i,j,k,PMLComp::yx) *= sigma_fac_z[j-zlo];
+        }
     }
 
 #elif defined(WARPX_DIM_3D)
@@ -369,8 +459,14 @@ void warpx_damp_pml_by (int i, int j, int k, amrex::Array4<amrex::Real> const& B
     // Byx
     if (sx == 0) {
         By(i,j,k,PMLComp::yx) *= sigma_star_fac_x[i-xlo];
+        if (abc_in_pml) {
+            By(i,j,k,PMLComp::yz) *= sigma_star_fac_x[i-xlo];
+        }
     } else {
         By(i,j,k,PMLComp::yx) *= sigma_fac_x[i-xlo];
+        if (abc_in_pml) {
+            By(i,j,k,PMLComp::yz) *= sigma_fac_x[i-xlo];
+        }
     }
 
     if (divb_cleaning)
@@ -386,8 +482,14 @@ void warpx_damp_pml_by (int i, int j, int k, amrex::Array4<amrex::Real> const& B
     // Byz
     if (sz == 0) {
         By(i,j,k,PMLComp::yz) *= sigma_star_fac_z[k-zlo];
+        if (abc_in_pml) {
+            By(i,j,k,PMLComp::yx) *= sigma_star_fac_z[k-zlo];
+        }
     } else {
         By(i,j,k,PMLComp::yz) *= sigma_fac_z[k-zlo];
+        if (abc_in_pml) {
+            By(i,j,k,PMLComp::yx) *= sigma_fac_z[k-zlo];
+        }
     }
 
 #endif
@@ -403,11 +505,11 @@ void warpx_damp_pml_bz (int i, int j, int k, amrex::Array4<amrex::Real> const& B
                         const amrex::Real* const sigma_star_fac_y,
                         const amrex::Real* const sigma_star_fac_z,
                         int xlo, int ylo, int zlo,
-                        const bool divb_cleaning)
+                        const bool divb_cleaning, const bool abc_in_pml)
 {
 #if defined(WARPX_DIM_1D_Z)
     amrex::ignore_unused(i, j, k, Bz, Bz_stag, sigma_fac_x, sigma_fac_y, sigma_fac_z,
-           sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, xlo, ylo, zlo, divb_cleaning);
+           sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, xlo, ylo, zlo, divb_cleaning, abc_in_pml);
     amrex::Abort("PML not implemented in Cartesian 1D geometry");
 #endif
 
@@ -422,8 +524,14 @@ void warpx_damp_pml_bz (int i, int j, int k, amrex::Array4<amrex::Real> const& B
     // Bzx
     if (sx == 0) {
         Bz(i,j,k,PMLComp::zx) *= sigma_star_fac_x[i-xlo];
+        if (abc_in_pml) {
+            Bz(i,j,k,PMLComp::zy) *= sigma_star_fac_x[i-xlo];
+        }
     } else {
         Bz(i,j,k,PMLComp::zx) *= sigma_fac_x[i-xlo];
+        if (abc_in_pml) {
+            Bz(i,j,k,PMLComp::zy) *= sigma_fac_x[i-xlo];
+        }
     }
 
     if (divb_cleaning)
@@ -446,15 +554,27 @@ void warpx_damp_pml_bz (int i, int j, int k, amrex::Array4<amrex::Real> const& B
     // Bzx
     if (sx == 0) {
         Bz(i,j,k,PMLComp::zx) *= sigma_star_fac_x[i-xlo];
+        if (abc_in_pml) {
+            Bz(i,j,k,PMLComp::zy) *= sigma_star_fac_x[i-xlo];
+        }
     } else {
         Bz(i,j,k,PMLComp::zx) *= sigma_fac_x[i-xlo];
+        if (abc_in_pml) {
+            Bz(i,j,k,PMLComp::zy) *= sigma_fac_x[i-xlo];
+        }
     }
 
     // Bzy
     if (sy == 0) {
         Bz(i,j,k,PMLComp::zy) *= sigma_star_fac_y[j-ylo];
+        if (abc_in_pml) {
+            Bz(i,j,k,PMLComp::zx) *= sigma_star_fac_y[j-ylo];
+        }
     } else {
         Bz(i,j,k,PMLComp::zy) *= sigma_fac_y[j-ylo];
+        if (abc_in_pml) {
+            Bz(i,j,k,PMLComp::zx) *= sigma_fac_y[j-ylo];
+        }
     }
 
     if (divb_cleaning)

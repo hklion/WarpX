@@ -350,6 +350,8 @@ public:
 
     static bool do_dynamic_scheduling;
     static bool refine_plasma;
+    static bool refineAddplasma;
+    static amrex::IntVect AddplasmaRefRatio;
 
     static utils::parser::IntervalsParser sort_intervals;
     static amrex::IntVect sort_bin_size;
@@ -370,10 +372,13 @@ public:
     //! #n_field_gather_buffer cells of the edge of the patch, will gather the fields
     //! from the lower refinement level instead of the refinement patch itself
     static int n_field_gather_buffer;
+    static amrex::IntVect n_field_gather_buffer_each_dir;
+
     //! With mesh refinement, particles located inside a refinement patch, but within
     //! #n_current_deposition_buffer cells of the edge of the patch, will deposit their charge
     //! and current onto the lower refinement level instead of the refinement patch itself
     static int n_current_deposition_buffer;
+    static amrex::IntVect n_current_deposition_buffer_each_dir;
 
     //! Integer that corresponds to the type of grid used in the simulation
     //! (collocated, staggered, hybrid)
@@ -699,7 +704,7 @@ public:
     {
         return load_balance_intervals;
     }
-
+    static int load_balance_startlevel;
     /**
      * \brief Private function for spectral solver
      * Applies a damping factor in the guards cells that extend
@@ -909,6 +914,10 @@ public:
     static amrex::XDim3 InvCellSize (int lev);
     static amrex::RealBox getRealBox(const amrex::Box& bx, int lev);
 
+//    [[nodiscard]] const amrex::MultiFab* getInterpWeightGBuffer (int lev) const
+//    {
+//        return interp_weight_gbuffer[lev].get();
+//    }
     /**
      * \brief Return the lower corner of the box in real units.
      * \param bx The box
@@ -1117,7 +1126,8 @@ public:
 
     // for cuda
     void BuildBufferMasksInBox ( amrex::Box tbx, amrex::IArrayBox &buffer_mask,
-                                 const amrex::IArrayBox &guard_mask, int ng );
+                                 const amrex::IArrayBox &guard_mask, const int ng );
+
 #ifdef AMREX_USE_EB
     amrex::EBFArrayBoxFactory const& fieldEBFactory (int lev) const noexcept {
         return static_cast<amrex::EBFArrayBoxFactory const&>(*m_field_factory[lev]);
@@ -1422,6 +1432,7 @@ private:
         return gather_buffer_masks[lev].get();
     }
 
+
     /**
      * \brief Re-orders the Fornberg coefficients so that they can be used more conveniently for
      * finite-order centering operations. For example, for finite-order centering of order 6,
@@ -1591,6 +1602,11 @@ private:
     amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>, 3 > > Bfield_cax;
     amrex::Vector<std::unique_ptr<amrex::iMultiFab> > current_buffer_masks;
     amrex::Vector<std::unique_ptr<amrex::iMultiFab> > gather_buffer_masks;
+//    /** Multifab that stores weights for interpolating fine and coarse solutions
+//     *  in the buffer gather region, such that, the weight for fine solution is
+//     *  0 near the coarse-fine interface, and 1 as the buffer gather region terminates in the fine patch
+//     */
+//    amrex::Vector<std::unique_ptr<amrex::MultiFab> > interp_weight_gbuffer;
 
     // If charge/current deposition buffers are used
     amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > > current_buf;
@@ -1618,9 +1634,12 @@ private:
     int pml_has_particles = 0;
     int do_pml_j_damping = 0;
     int do_pml_in_domain = 0;
-    bool do_similar_dm_pml = true;
+    bool do_similar_dm_pml = false;
+    int do_cubic_sigma_pml = 0;
+    amrex::Real pml_damping_strength = 4.;
     bool do_pml_dive_cleaning; // default set in WarpX.cpp
     bool do_pml_divb_cleaning; // default set in WarpX.cpp
+    static bool do_abc_in_pml;
     amrex::Vector<amrex::IntVect> do_pml_Lo;
     amrex::Vector<amrex::IntVect> do_pml_Hi;
     amrex::Vector<std::unique_ptr<PML> > pml;
@@ -1681,6 +1700,10 @@ private:
      * uniform plasma on a domain of size 128 by 128 by 128, from which the approximate
      * time per iteration per particle is computed. */
     amrex::Real costs_heuristic_particles_wt = amrex::Real(0);
+    /** Whether to use MakeSimilarDM when load balancing lev > 1 */
+    int do_similar_dm_refpatch = 0;
+    /** Whether to use SFC on vectorized BoxArrays from all levels */
+    int do_SFC_dm_vectorlevel = 0;
 
     // Determines timesteps for override sync
     utils::parser::IntervalsParser override_sync_intervals;

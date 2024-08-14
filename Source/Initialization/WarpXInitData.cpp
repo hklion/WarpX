@@ -640,6 +640,7 @@ WarpX::InitPML ()
             amrex::IntVect(0), amrex::IntVect(0),
             guard_cells.ng_FieldSolver.max(),
             v_particle_pml,
+            do_cubic_sigma_pml, pml_damping_strength,
             do_pml_Lo[0], do_pml_Hi[0]);
 #endif
 
@@ -679,6 +680,7 @@ WarpX::InitPML ()
                 amrex::IntVect(0), amrex::IntVect(0),
                 guard_cells.ng_FieldSolver.max(),
                 v_particle_pml,
+                do_cubic_sigma_pml, pml_damping_strength,
                 do_pml_Lo[lev], do_pml_Hi[lev]);
         }
     }
@@ -864,12 +866,12 @@ WarpX::InitLevelData (int lev, Real /*time*/)
     // Externally imposed fields are only initialized until the user-defined maxlevel_extEMfield_init.
     // The default maxlevel_extEMfield_init value is the total number of levels in the simulation
     if ((m_p_ext_field_params->B_ext_grid_type == ExternalFieldType::parse_ext_grid_function)
-         && (lev > 0) && (lev <= maxlevel_extEMfield_init)) {
+         && (lev <= maxlevel_extEMfield_init)) {
 
         InitializeExternalFieldsOnGridUsingParser(
-            Bfield_aux[lev][0].get(),
-            Bfield_aux[lev][1].get(),
-            Bfield_aux[lev][2].get(),
+            Bfield_fp[lev][0].get(),
+            Bfield_fp[lev][1].get(),
+            Bfield_fp[lev][2].get(),
             m_p_ext_field_params->Bxfield_parser->compile<3>(),
             m_p_ext_field_params->Byfield_parser->compile<3>(),
             m_p_ext_field_params->Bzfield_parser->compile<3>(),
@@ -878,17 +880,31 @@ WarpX::InitLevelData (int lev, Real /*time*/)
             'B',
             lev, PatchType::fine);
 
-        InitializeExternalFieldsOnGridUsingParser(
-            Bfield_cp[lev][0].get(),
-            Bfield_cp[lev][1].get(),
-            Bfield_cp[lev][2].get(),
-            m_p_ext_field_params->Bxfield_parser->compile<3>(),
-            m_p_ext_field_params->Byfield_parser->compile<3>(),
-            m_p_ext_field_params->Bzfield_parser->compile<3>(),
-            m_edge_lengths[lev],
-            m_face_areas[lev],
-            'B',
-            lev, PatchType::coarse);
+        if (lev > 0) {
+            InitializeExternalFieldsOnGridUsingParser(
+                Bfield_aux[lev][0].get(),
+                Bfield_aux[lev][1].get(),
+                Bfield_aux[lev][2].get(),
+                m_p_ext_field_params->Bxfield_parser->compile<3>(),
+                m_p_ext_field_params->Byfield_parser->compile<3>(),
+                m_p_ext_field_params->Bzfield_parser->compile<3>(),
+                m_edge_lengths[lev],
+                m_face_areas[lev],
+                'B',
+                lev, PatchType::fine);
+
+            InitializeExternalFieldsOnGridUsingParser(
+                Bfield_cp[lev][0].get(),
+                Bfield_cp[lev][1].get(),
+                Bfield_cp[lev][2].get(),
+                m_p_ext_field_params->Bxfield_parser->compile<3>(),
+                m_p_ext_field_params->Byfield_parser->compile<3>(),
+                m_p_ext_field_params->Bzfield_parser->compile<3>(),
+                m_edge_lengths[lev],
+                m_face_areas[lev],
+                'B',
+                lev, PatchType::coarse);
+        }
     }
     ParmParse pp_warpx("warpx");
     int IncludeBfieldPerturbation = 0;
@@ -936,6 +952,18 @@ WarpX::InitLevelData (int lev, Real /*time*/)
     // The default maxlevel_extEMfield_init value is the total number of levels in the simulation
     if ((m_p_ext_field_params->E_ext_grid_type == ExternalFieldType::parse_ext_grid_function)
         && (lev <= maxlevel_extEMfield_init)) {
+
+        InitializeExternalFieldsOnGridUsingParser(
+            Efield_fp[lev][0].get(),
+            Efield_fp[lev][1].get(),
+            Efield_fp[lev][2].get(),
+            m_p_ext_field_params->Exfield_parser->compile<3>(),
+            m_p_ext_field_params->Eyfield_parser->compile<3>(),
+            m_p_ext_field_params->Ezfield_parser->compile<3>(),
+            m_edge_lengths[lev],
+            m_face_areas[lev],
+            'E',
+            lev, PatchType::fine);
 
 #ifdef AMREX_USE_EB
         // We initialize ECTRhofield consistently with the Efield
@@ -1390,22 +1418,23 @@ WarpX::LoadExternalFields (int const lev)
             "External fields from file are not compatible with the moving window." );
     }
 
-    // External grid fields
-    if (m_p_ext_field_params->B_ext_grid_type == ExternalFieldType::parse_ext_grid_function) {
-        // Initialize Bfield_fp_external with external function
-        InitializeExternalFieldsOnGridUsingParser(
-            Bfield_fp_external[lev][0].get(),
-            Bfield_fp_external[lev][1].get(),
-            Bfield_fp_external[lev][2].get(),
-            m_p_ext_field_params->Bxfield_parser->compile<3>(),
-            m_p_ext_field_params->Byfield_parser->compile<3>(),
-            m_p_ext_field_params->Bzfield_parser->compile<3>(),
-            m_edge_lengths[lev],
-            m_face_areas[lev],
-            'B',
-            lev, PatchType::fine);
-    }
-    else if (m_p_ext_field_params->B_ext_grid_type == ExternalFieldType::read_from_file) {
+    //// External grid fields
+    //if (m_p_ext_field_params->B_ext_grid_type == ExternalFieldType::parse_ext_grid_function) {
+    //    // Initialize Bfield_fp_external with external function
+    //    InitializeExternalFieldsOnGridUsingParser(
+    //        Bfield_fp_external[lev][0].get(),
+    //        Bfield_fp_external[lev][1].get(),
+    //        Bfield_fp_external[lev][2].get(),
+    //        m_p_ext_field_params->Bxfield_parser->compile<3>(),
+    //        m_p_ext_field_params->Byfield_parser->compile<3>(),
+    //        m_p_ext_field_params->Bzfield_parser->compile<3>(),
+    //        m_edge_lengths[lev],
+    //        m_face_areas[lev],
+    //        'B',
+    //        lev, PatchType::fine);
+    //}
+    //else
+    if (m_p_ext_field_params->B_ext_grid_type == ExternalFieldType::read_from_file) {
 #if defined(WARPX_DIM_RZ)
         WARPX_ALWAYS_ASSERT_WITH_MESSAGE(n_rz_azimuthal_modes == 1,
                                          "External field reading is not implemented for more than one RZ mode (see #3829)");
@@ -1419,21 +1448,22 @@ WarpX::LoadExternalFields (int const lev)
 #endif
     }
 
-    if (m_p_ext_field_params->E_ext_grid_type == ExternalFieldType::parse_ext_grid_function) {
-        // Initialize Efield_fp_external with external function
-        InitializeExternalFieldsOnGridUsingParser(
-            Efield_fp_external[lev][0].get(),
-            Efield_fp_external[lev][1].get(),
-            Efield_fp_external[lev][2].get(),
-            m_p_ext_field_params->Exfield_parser->compile<3>(),
-            m_p_ext_field_params->Eyfield_parser->compile<3>(),
-            m_p_ext_field_params->Ezfield_parser->compile<3>(),
-            m_edge_lengths[lev],
-            m_face_areas[lev],
-            'E',
-            lev, PatchType::fine);
-    }
-    else if (m_p_ext_field_params->E_ext_grid_type == ExternalFieldType::read_from_file) {
+    //if (m_p_ext_field_params->E_ext_grid_type == ExternalFieldType::parse_ext_grid_function) {
+    //    // Initialize Efield_fp_external with external function
+    //    InitializeExternalFieldsOnGridUsingParser(
+    //        Efield_fp_external[lev][0].get(),
+    //        Efield_fp_external[lev][1].get(),
+    //        Efield_fp_external[lev][2].get(),
+    //        m_p_ext_field_params->Exfield_parser->compile<3>(),
+    //        m_p_ext_field_params->Eyfield_parser->compile<3>(),
+    //        m_p_ext_field_params->Ezfield_parser->compile<3>(),
+    //        m_edge_lengths[lev],
+    //        m_face_areas[lev],
+    //        'E',
+    //        lev, PatchType::fine);
+    //}
+    //else
+    if (m_p_ext_field_params->E_ext_grid_type == ExternalFieldType::read_from_file) {
 #if defined(WARPX_DIM_RZ)
         WARPX_ALWAYS_ASSERT_WITH_MESSAGE(n_rz_azimuthal_modes == 1,
                                          "External field reading is not implemented for more than one RZ mode (see #3829)");

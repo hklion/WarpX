@@ -14,5 +14,6 @@ foreach(D IN LISTS WarpX_DIMS)
         BackTransformParticleFunctor.cpp
         ParticleReductionFunctor.cpp
         TemperatureFunctor.cpp
+        ProcessorMapFunctor.cpp
     )
 endforeach()

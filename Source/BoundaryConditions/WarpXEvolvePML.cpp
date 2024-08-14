@@ -77,7 +77,7 @@ WarpX::DampPML_Cartesian (const int lev, PatchType patch_type)
 {
     const bool dive_cleaning = WarpX::do_pml_dive_cleaning;
     const bool divb_cleaning = WarpX::do_pml_divb_cleaning;
-
+    const bool abc_in_pml = WarpX::do_abc_in_pml;
     if (pml[lev]->ok())
     {
         const auto& pml_E = (patch_type == PatchType::fine) ? pml[lev]->GetE_fp() : pml[lev]->GetE_cp();
@@ -154,19 +154,19 @@ WarpX::DampPML_Cartesian (const int lev, PatchType patch_type)
 
                 warpx_damp_pml_ex(i, j, k, pml_Exfab, Ex_stag, sigma_fac_x, sigma_fac_y, sigma_fac_z,
                                   sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, x_lo, y_lo, z_lo,
-                                  dive_cleaning);
+                                  dive_cleaning, abc_in_pml);
             },
             [=] AMREX_GPU_DEVICE (int i, int j, int k) {
 
                 warpx_damp_pml_ey(i, j, k, pml_Eyfab, Ey_stag, sigma_fac_x, sigma_fac_y, sigma_fac_z,
                                   sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, x_lo, y_lo, z_lo,
-                                  dive_cleaning);
+                                  dive_cleaning, abc_in_pml);
             },
             [=] AMREX_GPU_DEVICE (int i, int j, int k) {
 
                 warpx_damp_pml_ez(i, j, k, pml_Ezfab, Ez_stag, sigma_fac_x, sigma_fac_y, sigma_fac_z,
                                   sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, x_lo, y_lo, z_lo,
-                                  dive_cleaning);
+                                  dive_cleaning, abc_in_pml);
             });
 
             amrex::ParallelFor(tbx, tby, tbz,
@@ -174,19 +174,19 @@ WarpX::DampPML_Cartesian (const int lev, PatchType patch_type)
 
                 warpx_damp_pml_bx(i, j, k, pml_Bxfab, Bx_stag, sigma_fac_x, sigma_fac_y, sigma_fac_z,
                                   sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, x_lo, y_lo, z_lo,
-                                  divb_cleaning);
+                                  divb_cleaning, abc_in_pml);
             },
             [=] AMREX_GPU_DEVICE (int i, int j, int k) {
 
                 warpx_damp_pml_by(i, j, k, pml_Byfab, By_stag, sigma_fac_x, sigma_fac_y, sigma_fac_z,
                                   sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, x_lo, y_lo, z_lo,
-                                  divb_cleaning);
+                                  divb_cleaning, abc_in_pml);
             },
             [=] AMREX_GPU_DEVICE (int i, int j, int k) {
 
                 warpx_damp_pml_bz(i, j, k, pml_Bzfab, Bz_stag, sigma_fac_x, sigma_fac_y, sigma_fac_z,
                                   sigma_star_fac_x, sigma_star_fac_y, sigma_star_fac_z, x_lo, y_lo, z_lo,
-                                  divb_cleaning);
+                                  divb_cleaning, abc_in_pml);
             });
 
             // For warpx_damp_pml_F(), mfi.nodaltilebox is used in the ParallelFor loop and here we

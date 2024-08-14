@@ -86,7 +86,7 @@ PhysicalParticleContainer::PartitionParticlesInBuffers(
     // Second, among particles that are in the larger buffer, partition
     // particles into the smaller buffer
 
-    if (WarpX::n_current_deposition_buffer == WarpX::n_field_gather_buffer) {
+    if (WarpX::n_current_deposition_buffer == WarpX::n_field_gather_buffer ) {
         // No need to do anything if the buffers have the same size
         nfine_current = nfine_gather = iteratorDistance(pid.begin(), sep);
     } else if (sep == pid.end()) {

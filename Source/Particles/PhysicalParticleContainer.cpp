@@ -989,6 +989,26 @@ PhysicalParticleContainer::AddPlasma (PlasmaInjector const& plasma_injector, int
         rrfac = m_gdb->refRatio(0);
         fine_injection_box.coarsen(rrfac);
     }
+    bool refineplasma = false;
+    amrex::ParticleLocator<amrex::DenseBins<amrex::Box> > refinepatch_locator;
+    amrex::ParticleLocator<amrex::DenseBins<amrex::Box> > parent_locator;
+    parent_locator.build(ParticleBoxArray(0),Geom(0));
+    if (WarpX::refineAddplasma)
+    {
+        refineplasma = true;
+        rrfac = WarpX::AddplasmaRefRatio;
+        auto fineba = ParticleBoxArray(1);
+        auto coarsened_fineba = fineba;
+        coarsened_fineba.coarsen(m_gdb->refRatio(0));
+        if (!refinepatch_locator.isValid(coarsened_fineba)) {
+            refinepatch_locator.build(coarsened_fineba, Geom(0));
+        }
+        refinepatch_locator.setGeometry(Geom(0));
+    }
+    auto assignpartgrid = (WarpX::refineAddplasma) ? refinepatch_locator.getGridAssignor()
+                                                   : parent_locator.getGridAssignor();
+        // if assign_grid(ijk_vec) > 0, then we are in refinement patch. therefore refine plasma particles
+        // else, usual num_part
 
     InjectorPosition* inj_pos = plasma_injector.getInjectorPosition();
     InjectorDensity*  inj_rho = plasma_injector.getInjectorDensity();
@@ -1094,11 +1114,15 @@ PhysicalParticleContainer::AddPlasma (PlasmaInjector const& plasma_injector, int
 
             lo.z = applyBallisticCorrection(lo, inj_mom, gamma_boost, beta_boost, t);
             hi.z = applyBallisticCorrection(hi, inj_mom, gamma_boost, beta_boost, t);
-
             if (inj_pos->overlapsWith(lo, hi))
             {
                 auto index = overlap_box.index(iv);
-                const amrex::Long r = (fine_overlap_box.ok() && fine_overlap_box.contains(iv))?
+                amrex::IntVect glo_iv = iv + tile_box.smallEnd();
+                bool in_refpatch = false;
+                if ( !(assignpartgrid(glo_iv)<0) && refineplasma) {
+                    in_refpatch = true;
+                }
+                const amrex::Long r = ( (fine_overlap_box.ok() && fine_overlap_box.contains(iv)) || (refineplasma && in_refpatch) ) ?
                     (AMREX_D_TERM(lrrfac[0],*lrrfac[1],*lrrfac[2])) : (1);
                 pcounts[index] = num_ppc*r;
                 // update pcount by checking if cell-corners or cell-center
@@ -1137,7 +1161,6 @@ PhysicalParticleContainer::AddPlasma (PlasmaInjector const& plasma_injector, int
         // Max number of new particles. All of them are created,
         // and invalid ones are then discarded
         const amrex::Long max_new_particles = Scan::ExclusiveSum(counts.size(), counts.data(), offset.data());
-
         // Update NextID to include particles created in this function
         amrex::Long pid;
 #ifdef AMREX_USE_OMP
@@ -1256,6 +1279,11 @@ PhysicalParticleContainer::AddPlasma (PlasmaInjector const& plasma_injector, int
         {
             const IntVect iv = IntVect(AMREX_D_DECL(i, j, k));
             const auto index = overlap_box.index(iv);
+            amrex::IntVect glo_iv = iv + tile_box.smallEnd();
+            bool in_refpatch = false;
+            if ( !(assignpartgrid(glo_iv)<0) && refineplasma) {
+                in_refpatch = true;
+            }
 #ifdef WARPX_DIM_RZ
             Real theta_offset = 0._rt;
             if (rz_random_theta) { theta_offset = amrex::Random(engine) * 2._rt * MathConst::pi; }
@@ -1276,13 +1304,12 @@ PhysicalParticleContainer::AddPlasma (PlasmaInjector const& plasma_injector, int
             {
                 long ip = poffset[index] + i_part;
                 pa_idcpu[ip] = amrex::SetParticleIDandCPU(pid+ip, cpuid);
-                const XDim3 r = (fine_overlap_box.ok() && fine_overlap_box.contains(iv)) ?
+                const XDim3 r = ( (fine_overlap_box.ok() && fine_overlap_box.contains(iv)) || (refineplasma && in_refpatch))  ?
                   // In the refined injection region: use refinement ratio `lrrfac`
                   inj_pos->getPositionUnitBox(i_part, lrrfac, engine) :
                   // Otherwise: use 1 as the refinement ratio
                   inj_pos->getPositionUnitBox(i_part, amrex::IntVect::TheUnitVector(), engine);
                 auto pos = getCellCoords(overlap_corner, dx, r, iv);
-
 #if defined(WARPX_DIM_3D)
                 if (!tile_realbox.contains(XDim3{pos.x,pos.y,pos.z})) {
                     ZeroInitializeAndSetNegativeID(pa_idcpu, pa, ip, loc_do_field_ionization, pi
@@ -2028,12 +2055,10 @@ PhysicalParticleContainer::Evolve (int lev,
     WARPX_PROFILE_VAR_NS("PhysicalParticleContainer::Evolve::GatherAndPush", blp_fg);
 
     BL_ASSERT(OnSameGrids(lev,jx));
-
     amrex::LayoutData<amrex::Real>* cost = WarpX::getCosts(lev);
 
     const iMultiFab* current_masks = WarpX::CurrentBufferMasks(lev);
     const iMultiFab* gather_masks = WarpX::GatherBufferMasks(lev);
-
     const bool has_buffer = cEx || cjx;
 
     if (m_do_back_transformed_particles)
@@ -2062,7 +2087,8 @@ PhysicalParticleContainer::Evolve (int lev,
 
         FArrayBox filtered_Ex, filtered_Ey, filtered_Ez;
         FArrayBox filtered_Bx, filtered_By, filtered_Bz;
-
+        FArrayBox bufferEx, bufferEy, bufferEz;
+        FArrayBox bufferBx, bufferBy, bufferBz;
         for (WarpXParIter pti(*this, lev); pti.isValid(); ++pti)
         {
             if (cost && WarpX::load_balance_costs_update_algo == LoadBalanceCostsUpdateAlgo::Timers)
@@ -2132,7 +2158,7 @@ PhysicalParticleContainer::Evolve (int lev,
 
                 DepositCharge(pti, wp, ion_lev, rho, 0, 0,
                               np_current, thread_num, lev, lev);
-                if (has_buffer){
+                if ((np-np_current)> 0 ){
                     DepositCharge(pti, wp, ion_lev, crho, 0, np_current,
                                   np-np_current, thread_num, lev, lev-1);
                 }
@@ -2177,6 +2203,7 @@ PhysicalParticleContainer::Evolve (int lev,
 
                     if (WarpX::use_fdtd_nci_corr)
                     {
+                        // should this be bufferEFields*
                         // Filter arrays (*cEx)[pti], store the result in
                         // filtered_Ex and update pointer cexfab so that it
                         // points to filtered_Ex (and do the same for all
@@ -2188,7 +2215,6 @@ PhysicalParticleContainer::Evolve (int lev,
                                        (*cBx)[pti], (*cBy)[pti], (*cBz)[pti],
                                        cexfab, ceyfab, cezfab, cbxfab, cbyfab, cbzfab);
                     }
-
                     // Field gather and push for particles in gather buffers
                     e_is_nodal = cEx->is_nodal() and cEy->is_nodal() and cEz->is_nodal();
                     if (push_type == PushType::Explicit) {
@@ -2205,7 +2231,6 @@ PhysicalParticleContainer::Evolve (int lev,
                                        lev, lev-1, dt, ScaleFields(false), a_dt_type);
                     }
                 }
-
                 WARPX_PROFILE_VAR_STOP(blp_fg);
 
                 // Current Deposition
@@ -2226,7 +2251,7 @@ PhysicalParticleContainer::Evolve (int lev,
                                    0, np_current, thread_num,
                                    lev, lev, dt / WarpX::n_subcycle_current, relative_time, push_type);
 
-                        if (has_buffer)
+                        if ((np-np_current)>0)
                         {
                             // Deposit in buffers
                             DepositCurrent(pti, wp, uxp, uyp, uzp, ion_lev, cjx, cjy, cjz,
@@ -2249,7 +2274,7 @@ PhysicalParticleContainer::Evolve (int lev,
 
                     DepositCharge(pti, wp, ion_lev, rho, 1, 0,
                                   np_current, thread_num, lev, lev);
-                    if (has_buffer){
+                    if ((np-np_current)>0 ){
                         DepositCharge(pti, wp, ion_lev, crho, 1, np_current,
                                       np-np_current, thread_num, lev, lev-1);
                     }
