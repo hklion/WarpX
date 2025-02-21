@@ -101,7 +101,7 @@ public:
     [[nodiscard]] SigmaBox* create (const amrex::Box& box, int /*ncomps*/,
         const amrex::FabInfo& /*info*/, int /*box_index*/) const final
     {
-        return new SigmaBox(box, m_grids, m_dx, m_ncell, m_delta, m_regdomain, m_v_sigma_sb, m_do_cubic_sigma_pml, m_pml_damping_strength);
+        return new SigmaBox(box, *m_grids, m_dx, m_ncell, m_delta, m_regdomain, m_v_sigma_sb, m_do_cubic_sigma_pml, m_pml_damping_strength);
     }
 
     void destroy (SigmaBox* fab) const final

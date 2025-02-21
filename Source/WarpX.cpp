@@ -120,8 +120,8 @@ ParticleReal WarpX::particle_tol_in_implicit_scheme = 1.e-10;
 bool WarpX::do_dive_cleaning = false;
 bool WarpX::do_divb_cleaning = false;
 bool WarpX::do_single_precision_comms = false;
-bool WarpX::do_subcycle_current = false;
-int WarpX::n_subcycle_current = 1;
+//bool WarpX::do_subcycle_current = false;
+//int WarpX::n_subcycle_current = 1;
 bool WarpX::do_abc_in_pml = false;
 int WarpX::load_balance_startlevel = 0;
 
@@ -1305,26 +1305,22 @@ WarpX::ReadParameters ()
                                       macroscopic_solver_algo, "-_");
         }
 
-        utils::parser::queryWithParser(pp_algo, "do_subcycle_current", do_subcycle_current);
-        if (do_subcycle_current) {
-            bool found_subcycle_current = utils::parser::queryWithParser(pp_algo, "n_subcycle_current", n_subcycle_current);
-            if (! found_subcycle_current) {
-                amrex::Abort(Utils::TextMsg::Err("If do_subcycle_current is true,"
-                                                "n_subcycle_current must be specified"));
-            }
-            if (n_subcycle_current < 1) {
-                amrex::Abort(Utils::TextMsg::Err("n_subcycle_current must be greater than or equal to 1"));
-            }
-        }
+//        utils::parser::queryWithParser(pp_algo, "do_subcycle_current", do_subcycle_current);
+//        if (do_subcycle_current) {
+//            bool found_subcycle_current = utils::parser::queryWithParser(pp_algo, "n_subcycle_current", n_subcycle_current);
+//            if (! found_subcycle_current) {
+//                amrex::Abort(Utils::TextMsg::Err("If do_subcycle_current is true,"
+//                                                "n_subcycle_current must be specified"));
+//            }
+//            if (n_subcycle_current < 1) {
+//                amrex::Abort(Utils::TextMsg::Err("n_subcycle_current must be greater than or equal to 1"));
+//            }
+//        }
 
         if (evolve_scheme == EvolveScheme::SemiImplicitEM ||
-<<<<<<< HEAD
-            evolve_scheme == EvolveScheme::ThetaImplicitEM) {
-=======
             evolve_scheme == EvolveScheme::ThetaImplicitEM ||
             evolve_scheme == EvolveScheme::StrangImplicitSpectralEM) {
 
->>>>>>> deef43533b9ccbee355327e9f023947dfd5ef909
             WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
                 current_deposition_algo == CurrentDepositionAlgo::Esirkepov ||
                 current_deposition_algo == CurrentDepositionAlgo::Villasenor ||
@@ -2083,28 +2079,7 @@ WarpX::ClearLevel (int lev)
         Afield_dotMask [lev][i].reset();
     }
 
-<<<<<<< HEAD
-    if (WarpX::electromagnetic_solver_id == ElectromagneticSolverAlgo::HybridPIC)
-    {
-        m_hybrid_pic_model->ClearLevel(lev);
-    }
-
-    charge_buf[lev].reset();
-
-    current_buffer_masks[lev].reset();
-    gather_buffer_masks[lev].reset();
-//    interp_weight_gbuffer[lev].reset();
-
-    F_fp  [lev].reset();
-    G_fp  [lev].reset();
-    rho_fp[lev].reset();
-    phi_fp[lev].reset();
-    F_cp  [lev].reset();
-    G_cp  [lev].reset();
-    rho_cp[lev].reset();
-=======
     phi_dotMask[lev].reset();
->>>>>>> deef43533b9ccbee355327e9f023947dfd5ef909
 
 #ifdef WARPX_USE_FFT
     if (WarpX::electromagnetic_solver_id == ElectromagneticSolverAlgo::PSATD) {
@@ -2860,20 +2835,11 @@ WarpX::AllocLevelMFs (int lev, const BoxArray& ba, const DistributionMapping& dm
         }
 
         if (n_current_deposition_buffer > 0) {
-<<<<<<< HEAD
-            amrex::Print() << " current dep buffer : " << n_current_deposition_buffer << "\n";
-            AllocInitMultiFab(current_buf[lev][0], amrex::convert(cba,jx_nodal_flag),dm,ncomps,ngJ,lev, "current_buf[x]");
-            AllocInitMultiFab(current_buf[lev][1], amrex::convert(cba,jy_nodal_flag),dm,ncomps,ngJ,lev, "current_buf[y]");
-            AllocInitMultiFab(current_buf[lev][2], amrex::convert(cba,jz_nodal_flag),dm,ncomps,ngJ,lev, "current_buf[z]");
-            if (rho_cp[lev]) {
-                AllocInitMultiFab(charge_buf[lev], amrex::convert(cba,rho_nodal_flag),dm,2*ncomps,ngRho,lev, "charge_buf");
-=======
             m_fields.alloc_init(FieldType::current_buf, Direction{0}, lev, amrex::convert(cba,jx_nodal_flag), dm, ncomps, ngJ, 0.0_rt);
             m_fields.alloc_init(FieldType::current_buf, Direction{1}, lev, amrex::convert(cba,jy_nodal_flag), dm, ncomps, ngJ, 0.0_rt);
             m_fields.alloc_init(FieldType::current_buf, Direction{2}, lev, amrex::convert(cba,jz_nodal_flag), dm, ncomps, ngJ, 0.0_rt);
             if (m_fields.has(FieldType::rho_cp, lev)) {
                 m_fields.alloc_init(FieldType::rho_buf, lev, amrex::convert(cba,rho_nodal_flag), dm, 2*ncomps, ngRho, 0.0_rt);
->>>>>>> deef43533b9ccbee355327e9f023947dfd5ef909
             }
             amrex::Print() << " allocate current buffer mask \n";
             AllocInitMultiFab(current_buffer_masks[lev], ba, dm, ncomps, ngJ, lev, "current_buffer_masks");
